@@ -11,13 +11,14 @@ services:
       - ./:/var/www
     networks:
       - laravel
-
+    ports:
+        - "8005:80"
   nginx:
     image: nginx:alpine
     container_name: bar-tally-nginx
     restart: unless-stopped
     ports:
-      - "8000:80"
+      - "8005:80"
     volumes:
       - ./:/var/www
       - ./nginx:/etc/nginx/conf.d/
@@ -25,17 +26,19 @@ services:
       - laravel
 
   db:
-    image: postgres:13
-    container_name: bar-tally-db
+    image: mysql:8.0
+    container_name: bar-tally-mysql
     restart: unless-stopped
     ports:
-      - "5434:5432"
+      - "3308:3306"
     environment:
-        POSTGRES_DB: bar-tally
-        POSTGRES_USER: felix
-        POSTGRES_PASSWORD: felix
+      MYSQL_DATABASE: bar-tally
+
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+      MYSQL_ROOT_PASSWORD: root
     volumes:
-      - dbdata:/var/lib/postgresql/data
+      - mysqldata:/var/lib/mysql
     networks:
       - laravel
 
@@ -53,5 +56,5 @@ networks:
     driver: bridge
 
 volumes:
-  dbdata:
+  mysqldata:
     driver: local
