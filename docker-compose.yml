@@ -1,0 +1,57 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bar-tally-app
+    restart: unless-stopped
+    working_dir: /var/www/
+    volumes:
+      - ./:/var/www
+    networks:
+      - laravel
+
+  nginx:
+    image: nginx:alpine
+    container_name: bar-tally-nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./:/var/www
+      - ./nginx:/etc/nginx/conf.d/
+    networks:
+      - laravel
+
+  db:
+    image: postgres:13
+    container_name: bar-tally-db
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    environment:
+        POSTGRES_DB: bar-tally
+        POSTGRES_USER: felix
+        POSTGRES_PASSWORD: felix
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - laravel
+
+  redis:
+    image: redis:alpine
+    container_name: bar-tally-redis
+    restart: unless-stopped
+    ports:
+    - "6380:6379"
+    networks:
+      - laravel
+
+networks:
+  laravel:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local

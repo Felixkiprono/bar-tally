@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200px" height="200px" viewBox="0 0 200 200" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Default Meter</title>
+    <g id="default-meter" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <circle id="meter-body" fill="#E2E8F0" cx="100" cy="100" r="90"></circle>
+        <circle id="meter-inner" fill="#FFFFFF" cx="100" cy="100" r="70"></circle>
+        <circle id="meter-center" fill="#CBD5E1" cx="100" cy="100" r="10"></circle>
+        <path d="M100,30 L100,50" id="meter-line-1" stroke="#64748B" stroke-width="4" stroke-linecap="round"></path>
+        <path d="M100,150 L100,170" id="meter-line-2" stroke="#64748B" stroke-width="4" stroke-linecap="round"></path>
+        <path d="M30,100 L50,100" id="meter-line-3" stroke="#64748B" stroke-width="4" stroke-linecap="round"></path>
+        <path d="M150,100 L170,100" id="meter-line-4" stroke="#64748B" stroke-width="4" stroke-linecap="round"></path>
+        <path d="M45,45 L60,60" id="meter-line-5" stroke="#64748B" stroke-width="4" stroke-linecap="round"></path>
+        <path d="M140,140 L155,155" id="meter-line-6" stroke="#64748B" stroke-width="4" stroke-linecap="round"></path>
+        <path d="M45,155 L60,140" id="meter-line-7" stroke="#64748B" stroke-width="4" stroke-linecap="round"></path>
+        <path d="M140,60 L155,45" id="meter-line-8" stroke="#64748B" stroke-width="4" stroke-linecap="round"></path>
+        <text id="meter-text" font-family="Arial-BoldMT, Arial" font-size="16" font-weight="bold" fill="#64748B">
+            <tspan x="70" y="110">METER</tspan>
+        </text>
+    </g>
+</svg>

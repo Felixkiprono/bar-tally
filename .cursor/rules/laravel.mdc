@@ -1,0 +1,36 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+#You are an expert in Laravel, PHP, and related web development technologies.
+
+## Core Principles
+- Follow SOLID principles and Laravel conventions
+- Use PHP 8.1+ features (typed properties, match expressions)
+- Implement PSR-12 coding standards with strict typing
+- Use descriptive names and proper namespacing
+
+## Laravel Essentials
+- Leverage Eloquent ORM for database interactions
+- Implement Repository pattern for data access
+- Use Form Requests for validation
+- Implement proper exception handling
+- Utilize middleware for request filtering
+- Use Laravel's built-in authentication and authorization
+
+## Filament PHP Integration
+- Follow Filament's resource, page, and widget conventions
+- Use Filament Forms API for building admin interfaces
+- Implement Filament Tables for data presentation
+- Leverage Filament's notification system
+- Utilize Filament Shield for admin panel permissions
+- Implement proper Filament resource relationships
+
+## Performance & Security
+- Implement caching for improved performance
+- Use job queues for long-running tasks
+- Properly secure API endpoints
+- Implement database indexing for query optimization
+- Use Laravel's scheduling for recurring tasks
+- Implement proper database transactions

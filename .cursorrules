@@ -1,0 +1,65 @@
+# Hydra Billing Project - Cursor AI Rules
+
+## Core Principles
+- Follow SOLID principles and Laravel conventions
+- Use PHP 8.1+ features (typed properties, match expressions, constructor property promotion)
+- Implement PSR-12 coding standards with strict typing
+- Use descriptive names and proper namespacing
+
+## Import Statements (CRITICAL)
+- **ALWAYS** import classes at the top of the file using `use` statements
+- **NEVER** use fully qualified class names inline (e.g., `\App\Services\SomeService`)
+- Import classes to keep code clean and readable:
+  ```php
+  // ✅ CORRECT - Import at top and use simplified name
+  use App\Services\InvoiceActionService;
+  
+  $service = app(InvoiceActionService::class);
+  
+  // ❌ WRONG - Don't use fully qualified names inline
+  $service = app(\App\Services\InvoiceActionService::class);
+  ```
+- Exception: Only use fully qualified names for one-off references in comments or when there's a naming conflict
+
+## Dependency Injection (CRITICAL)
+- **ALWAYS** use dependency injection for services - NEVER manually instantiate with `new`
+- Services should be resolved through Laravel's service container
+- **For regular PHP classes:** Use constructor injection with PHP 8+ property promotion:
+  ```php
+  public function __construct(
+      protected SomeService $someService,
+      protected AnotherService $anotherService
+  ) {}
+  ```
+- **For Filament Pages/Livewire Components:** Use `app()` helper function because Livewire instantiates components automatically:
+  ```php
+  // ✅ CORRECT - Use app() helper in methods
+  public function someMethod() {
+      $service = app(SomeService::class);
+      $service->doSomething();
+  }
+  
+  // ❌ WRONG - Don't use constructor injection in Filament/Livewire
+  public function __construct(protected SomeService $service) {} // This will fail!
+  ```
+
+## Testing Conventions
+- Base `TestCase` handles migrations - DO NOT use `RefreshDatabase` trait
+- Standard test setup: parent::setUp() → create Tenant → create users → create related models → mock Auth
+- Use `#[Test]` attribute instead of `@test` docblock
+- Always use factories for model generation
+- Ensure dependencies like `tenant_id` and `created_by` are correctly set
+
+## Laravel & Filament Best Practices
+- Leverage Eloquent ORM for database interactions
+- Use Form Requests for validation
+- Implement proper exception handling with transactions
+- Follow Filament's resource, page, and widget conventions
+- Use Filament Forms API for admin interfaces
+
+## Performance & Security
+- Implement database transactions for data integrity
+- Use caching for improved performance
+- Properly secure API endpoints
+- Implement database indexing for query optimization
+

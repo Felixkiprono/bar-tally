@@ -1,0 +1,222 @@
+---
+description: Hydra Billing Project-Specific Rules
+globs: 
+alwaysApply: true
+---
+
+# Hydra Billing Project Conventions & Rules
+
+This document outlines the key conventions and testing practices for the Hydra Billing project.
+
+## General
+- Follow SOLID principles and Laravel conventions.
+- Use PHP 8.1+ features (typed properties, match expressions, constructor property promotion).
+- Adhere to PSR-12 coding standards with strict typing.
+- Use descriptive names and proper namespacing.
+- When updating a Filament resource, ensure corresponding relation managers that expose the same resource elsewhere reflect the same changes for consistency.
+
+## Import Statements (CRITICAL)
+- **ALWAYS** import classes at the top of the file using `use` statements
+- **NEVER** use fully qualified class names inline (e.g., `\App\Services\SomeService`)
+- Import classes to keep code clean and readable:
+  ```php
+  // ✅ CORRECT - Import at top and use simplified name
+  use App\Services\InvoiceActionService;
+  
+  $service = app(InvoiceActionService::class);
+  
+  // ❌ WRONG - Don't use fully qualified names inline
+  $service = app(\App\Services\InvoiceActionService::class);
+  ```
+- Exception: Only use fully qualified names for one-off references in comments or when there's a naming conflict
+
+## Dependency Injection (CRITICAL)
+- **ALWAYS** use dependency injection for services - NEVER manually instantiate with `new`
+- Services should be resolved through Laravel's service container
+- **For regular PHP classes:** Use constructor injection with PHP 8+ property promotion:
+  ```php
+  public function __construct(
+      protected SomeService $someService,
+      protected AnotherService $anotherService
+  ) {}
+  ```
+- **For Filament Pages/Livewire Components:** Use `app()` helper function because Livewire instantiates components automatically:
+  ```php
+  // ✅ CORRECT - Use app() helper in methods
+  public function someMethod() {
+      $service = app(SomeService::class);
+      $service->doSomething();
+  }
+  
+  // ❌ WRONG - Don't use constructor injection in Filament/Livewire
+  public function __construct(protected SomeService $service) {} // This will fail!
+  ```
+
+## Testing Conventions
+
+### Test Case Setup (`tests/TestCase.php`)
+- The base `TestCase` extends `Illuminate\Foundation\Testing\TestCase`.
+- It configures an in-memory SQLite database for all tests (`DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`).
+- It manually runs fresh migrations before each test using `$this->artisan('migrate:fresh', ...)` inside the `setUp()` method.
+- **Do not use the `RefreshDatabase` trait** in individual test classes, as migrations are handled in the base `TestCase`.
+- Multitenancy is disabled during tests.
+
+### Standard Test `setUp()` Method
+A standard `setUp()` method in a test class should perform the following actions in order:
+```php
+protected function setUp(): void
+{
+    parent::setUp(); // Always call parent first
+    
+    // 1. Create Tenant
+    $this->tenant = Tenant::factory()->create();
+    
+    // 2. Create users (admin and customers)
+    $this->admin = User::factory()->admin()->create(['tenant_id' => $this->tenant->id]);
+    $this->customer = User::factory()->create(['tenant_id' => $this->tenant->id]);
+    
+    // 3. Create required accounts
+    Account::factory()->bank()->create(['tenant_id' => $this->tenant->id]);
+    Account::factory()->arControl()->create(['tenant_id' => $this->tenant->id]);
+    Account::factory()->customerPrepayment()->create(['tenant_id' => $this->tenant->id]);
+    
+    // 4. Create related models (meters, assignments, etc.)
+    $this->meter = Meter::factory()->create(['tenant_id' => $this->tenant->id]);
+    $this->assignment = MeterAssignment::factory()->create([
+        'meter_id' => $this->meter->id,
+        'customer_id' => $this->customer->id,
+        'tenant_id' => $this->tenant->id,
+    ]);
+    
+    // 5. Mock Auth
+    Auth::shouldReceive('user')->andReturn($this->admin);
+    Auth::shouldReceive('id')->andReturn($this->admin->id);
+}
+```
+
+### Test Method Style
+- Use PHP attributes `#[Test]` instead of docblock annotations (`/** @test */`). Remember to import `use PHPUnit\Framework\Attributes\Test;`.
+
+### Data Generation
+- **Factories**: Always use factories (`User::factory()`, `Invoice::factory()`, etc.) to generate model data.
+- **`HasFactory` Trait**: Ensure all models that need factories have the `use HasFactory;` trait.
+- **Data Dependencies**: When creating models, ensure dependencies like `tenant_id` and `created_by` are correctly set. The typical order is: Tenant -> User (Admin) -> Other Models.
+- Use `app()` helper to resolve services in tests for proper dependency injection.
+
+## Model & Data Specifics
+- **Invoice Status**: Must be lowercase (e.g., `'not paid'`, not `'Not Paid'`).
+- **Account Model**: Requires `description`, `balance`, `created_by`, and `tenant_id`.
+- **Tenant Model**: Requires `name`, `domain`, and `database` fields.
+
+## Implemented Services & Helpers
+This is a non-exhaustive list of key services and helpers in the project.
+
+- **Services**:
+    - `CustomerPaymentService`: Handles quick pay, invoice payments, and overpayments.
+    - `MeterAssignmentService`: Pure service for meter assignments.
+    - `InvoiceActionService`: For invoice operations like payment, reversal, and correction.
+    - `BillCreationService`: Handles single and batch bill creation with invoice generation.
+    - `PaymentService`: Core payment processing with accounting entries.
+    - `MeterFinancialService`: Calculates meter and customer balances.
+    - `InvoiceService`: Generates invoices from bills.
+- **Helpers**:
+    - `CustomerActionHelper`: Reusable customer actions across views.
+    - `InvoiceTableHelper`: For consistent invoice table/actions.
+    - `MeterAssignmentFormHelper`: For Filament form components.
+
+## SMS Messaging - Rules and Flow
+
+### Core Principles
+- Always send SMS asynchronously via a queued job; do not call providers directly.
+- Build message content from database templates; never hardcode production SMS copy.
+- Validate content before sending: no unresolved `[PLACEHOLDER]` tokens may remain.
+- Append the tenant SMS footer by default.
+- Persist every send attempt to the `messages` table with full context and linkage.
+
+### End-to-End Flow
+1. Select an active `MessageTemplate` for the context (`INVOICE`, `PAYMENT`, `REMINDER`, `METER_READING`, `GENERAL`).
+2. Use `MessageResolver` to replace `{tags}` with entity data (meter-centric for `GENERAL`).
+3. Dispatch `SendSmsJob` with: customer, resolved message, context, related entity, and any metadata.
+4. The job calls `MessagingService::sendToCustomer()` which:
+   - Validates no `[PLACEHOLDER]` tokens using `TemplateService::validateTemplatePlaceholders()`
+   - Appends the footer via `Configuration::getSmsFooter($tenantId)` when `appendFooter=true`
+   - Resolves recipients: customer.phone + contacts, de-duplicated
+   - Skips duplicates sent to the same phone with the same body within 24h
+   - Sends via `SmsManager` (provider chosen from configuration)
+   - Creates a `Message` record (status: `sent`/`failed`, `related_type/id`, `batch_id`, `provider`, `sent_by`, etc.)
+   - Supports retry of failed records via `MessagingService::retryFailedMessage()`
+
+### Supported Contexts and Tag Behavior
+- `INVOICE`, `PAYMENT`, `REMINDER`, `METER_READING`: Use corresponding resolver methods to populate tags.
+- `GENERAL`: Tags are meter-based for financial fields (e.g., `{balance}`, `{overpayment}`) and use meter/location data.
+
+### Correct Usage Examples
+
+Regular PHP classes (constructor DI):
+
+```php
+use App\Services\Messages\TemplateService;
+use App\Services\Messages\MessageResolver;
+use App\Jobs\SendSmsJob;
+use App\Models\MessageTemplate;
+
+class PaymentNotifier
+{
+    public function __construct(
+        protected TemplateService $templateService,
+        protected MessageResolver $resolver,
+    ) {}
+
+    public function notifyPayment(Payment $payment): void
+    {
+        $template = MessageTemplate::query()
+            ->where('context', 'PAYMENT')
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $body = $this->resolver->resolvePaymentMessage($payment, $template);
+
+        dispatch(new SendSmsJob(
+            customer: $payment->customer,
+            message: $body,
+            context: 'PAYMENT',
+            relatedEntity: $payment,
+        ));
+    }
+}
+```
+
+Filament/Livewire (no constructor DI; resolve via `app()` and dispatch a job):
+
+```php
+$resolver = app(\App\Services\Messages\MessageResolver::class);
+$template = \App\Models\MessageTemplate::active()->where('context', 'INVOICE')->firstOrFail();
+$body = $resolver->resolveInvoiceMessage($invoice, $template);
+
+dispatch(new \App\Jobs\SendSmsJob(
+    customer: $invoice->customer,
+    message: $body,
+    context: 'INVOICE',
+    relatedEntity: $invoice,
+));
+```
+
+### Do / Don’t
+- Do: Use `MessageTemplate` from DB; avoid string literals for production SMS content.
+- Do: Pass the `relatedEntity` (Invoice/Payment/etc.) to enable polymorphic linkage.
+- Do: Keep `appendFooter=true` unless a business case requires omission.
+- Do: Dispatch `SendSmsJob` for async sending; let `MessagingService` handle sending and persistence.
+- Don’t: Call `SmsManager` or provider classes directly from UI or business services.
+- Don’t: Send messages containing unresolved `[PLACEHOLDER]` tokens; resolve or remove them first.
+
+### Configuration
+- Footer: Managed per-tenant via `Configuration::getSmsFooter($tenantId)` and Filament settings.
+- Provider: Selected by `SmsManager` using configured defaults (see `config/services.php`).
+
+### Testing Guidance
+- Prefer asserting that `SendSmsJob` was dispatched with correct payload instead of direct sends.
+- When executing jobs in tests, assert a `Message` record is created with:
+  - `status` set appropriately, correct `context`, `tenant_id`, `user_id`
+  - `related_type/id` set to the entity
+  - No `{tags}` or `[PLACEHOLDER]` remain in `message`
+- Use seeded/system templates in tests to avoid hardcoding content.
