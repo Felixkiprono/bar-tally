@@ -13,6 +13,11 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Models\Counter;
+use App\Models\Item;
+use App\Models\DailySession;
+use Filament\Forms\Components\Hidden;
+use Illuminate\Support\Facades\Auth;
 
 class ControllerResource extends Resource
 {
@@ -25,29 +30,116 @@ class ControllerResource extends Resource
     protected static ?string $navigationLabel = 'Closing Count';
     public static function form(Form $form): Form
     {
+        $user = Auth::user();
+
         return $form
             ->schema([
-                //
+
+                Forms\Components\Section::make('Closing Count')
+                    ->description('Record final physical stock at your counter')
+                    ->schema([
+
+                        // Counter selection – only from user's bar
+                        Forms\Components\Select::make('counter_id')
+                            ->label('Counter')
+                            ->options(
+                                Counter::query()
+                                    ->where('bar_id', $user->bar_id)
+                                    ->pluck('name', 'id')
+                            )
+                            ->searchable()
+                            ->required(),
+
+                        // Item selection
+                        Forms\Components\Select::make('item_id')
+                            ->label('Product')
+                            ->options(
+                                Item::query()
+                                    ->where('tenant_id', $user->tenant_id)
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
+                            )
+                            ->searchable()
+                            ->required(),
+
+                        Forms\Components\TextInput::make('quantity')
+                            ->label('Closing Count')
+                            ->numeric()
+                            ->minValue(0)
+                            ->required(),
+
+                        Forms\Components\DatePicker::make('movement_date')
+                            ->label('Date')
+                            ->default(now())
+                            ->required(),
+
+                        Forms\Components\Textarea::make('notes')
+                            ->label('Notes')
+                            ->nullable()
+                            ->rows(2),
+
+                        Forms\Components\Hidden::make('tenant_id')
+                            ->default($user->tenant_id),
+
+                        Forms\Components\Hidden::make('created_by')
+                            ->default($user->id),
+
+                        Forms\Components\Hidden::make('movement_type')
+                            ->default('closing'),
+
+                        Forms\Components\Hidden::make('session_id')
+                            ->default(
+                                fn() =>
+                                DailySession::where('tenant_id', Auth::user()->tenant_id)
+                                    ->where('is_open', true)
+                                    ->first()
+                                    ?->id
+                            ),
+                    ])
+                    ->columns(2),
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(
+                fn($query) =>
+                $query->where('movement_type', 'closing')
+            )
             ->columns([
-                //
+
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Time')
+                    ->dateTime()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('counter.name')
+                    ->label('Counter')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('item.name')
+                    ->label('Product')
+                    ->sortable()
+                    ->searchable(),
+
+                Tables\Columns\BadgeColumn::make('quantity')
+                    ->label('Closing Count')
+                    ->colors([
+                        'success' => fn($state) => $state >= 0,
+                    ]),
+
+                Tables\Columns\TextColumn::make('creator.name')
+                    ->label('Controller')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('notes')
+                    ->limit(30)
+                    ->placeholder('-'),
             ])
-            ->filters([
-                //
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->defaultSort('created_at', 'desc')
+            ->actions([])
+            ->bulkActions([]);
     }
 
     public static function getRelations(): array
@@ -62,7 +154,6 @@ class ControllerResource extends Resource
         return [
             'index' => Pages\ListControllers::route('/'),
             'create' => Pages\CreateController::route('/create'),
-            'edit' => Pages\EditController::route('/{record}/edit'),
         ];
     }
 }

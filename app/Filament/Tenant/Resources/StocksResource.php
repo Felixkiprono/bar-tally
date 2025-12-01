@@ -113,7 +113,7 @@ class StocksResource extends Resource
             ->actions([])
 
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+
             ]);
     }
 
@@ -129,7 +129,6 @@ class StocksResource extends Resource
         return [
             'index' => Pages\ListStocks::route('/'),
             'create' => Pages\CreateStocks::route('/create'),
-            'edit' => Pages\EditStocks::route('/{record}/edit'),
         ];
     }
 }

@@ -9,4 +9,6 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateStocks extends CreateRecord
 {
     protected static string $resource = StocksResource::class;
+
+    protected static ?string $title = 'Restock Product';
 }

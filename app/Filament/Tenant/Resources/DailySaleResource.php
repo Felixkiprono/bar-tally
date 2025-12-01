@@ -4,7 +4,9 @@ namespace App\Filament\Tenant\Resources;
 
 use App\Filament\Tenant\Resources\DailySaleResource\Pages;
 use App\Filament\Tenant\Resources\DailySaleResource\RelationManagers;
+use App\Models\Counter;
 use App\Models\DailySale;
+use App\Models\DailySession;
 use App\Models\StockMovement;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -22,38 +24,47 @@ class DailySaleResource extends Resource
     protected static ?string $model = StockMovement::class;
 
     protected static ?string $navigationIcon = 'heroicon-c-document-currency-dollar';
-
     protected static ?string $navigationGroup = 'Cashier';
     protected static ?string $navigationLabel = 'Record Sales';
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 //
-
-                Forms\Components\Section::make('Receive Stock')
-                    ->description('Record stock received into central store')
+                Forms\Components\Section::make('Record Sale')
+                    ->description('Enter items sold at your assigned bar counter')
                     ->schema([
 
+                        // Select counter scoped to user->bar_id
+                        Forms\Components\Select::make('counter_id')
+                            ->label('Counter')
+                            ->options(
+                                Counter::query()
+                                    ->where('bar_id',  Auth::user()->bar_id)
+                                    ->pluck('name', 'id')
+                            )
+                            ->searchable()
+                            ->required(),
+
+                        // Select product
                         Forms\Components\Select::make('item_id')
-                            ->label('Item')
+                            ->label('Product')
                             ->options(
                                 Item::query()
-                                    ->where('tenant_id', Auth::user()->tenant_id)
+                                    ->where('tenant_id',  Auth::user()->tenant_id)
                                     ->orderBy('name')
                                     ->pluck('name', 'id')
                             )
                             ->searchable()
                             ->required(),
 
+                        // Quantity (will be negated)
                         Forms\Components\TextInput::make('quantity')
-                            ->label('Quantity Received')
+                            ->label('Quantity Sold')
                             ->numeric()
-                            ->required()
-                            ->minValue(1),
-
-                        Forms\Components\Hidden::make('movement_type')
-                            ->default(fn() => 'restock'),
+                            ->minValue(1)
+                            ->required(),
 
                         Forms\Components\DatePicker::make('movement_date')
                             ->label('Date')
@@ -70,26 +81,42 @@ class DailySaleResource extends Resource
 
                         Forms\Components\Hidden::make('created_by')
                             ->default(fn() => Auth::id()),
+
+                        Forms\Components\Hidden::make('session_id')
+                            ->default(
+                                fn() =>
+                                DailySession::where('tenant_id', Auth::user()->tenant_id)
+                                    ->where('is_open', true)
+                                    ->first()
+                                    ?->id
+                            ),
+
+                        Forms\Components\Hidden::make('movement_type')
+                            ->default('sale'),
                     ])
                     ->columns(2),
+
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
-
-            // Only show stock intake rows
             ->modifyQueryUsing(
                 fn($query) =>
-                $query->where('movement_type', 'restock')
+                $query->where('movement_type', 'sale')
             )
-
             ->columns([
+
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('TimeStamp')
+                    ->label('Time')
                     ->dateTime()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('counter.name')
+                    ->label('Counter')
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('item.name')
                     ->label('Product')
                     ->sortable()
@@ -97,27 +124,30 @@ class DailySaleResource extends Resource
 
                 Tables\Columns\BadgeColumn::make('quantity')
                     ->label('Qty')
+                    ->formatStateUsing(fn($state) => $state)
                     ->colors([
-                        'success' => fn($state) => $state > 0,
-                    ])
-                    ->formatStateUsing(fn($state) => "+{$state}"),
-
-                Tables\Columns\TextColumn::make('notes')
-                    ->limit(30)
-                    ->placeholder('-'),
-
+                        'danger' => fn($state) => $state < 0,
+                    ]),
+                Tables\Columns\TextColumn::make('item.selling_price')
+                    ->label('Price')
+                    ->money('kes', true) // true = show decimals
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('total_amount')
+                    ->label('Total')
+                    ->money('kes', true)
+                    ->state(function ($record) {
+                        $quantity = abs($record->quantity);
+                        $price = $record->item->selling_price ?? 0;
+                        return $quantity * $price;
+                    })
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('creator.name')
-                    ->label('Recorded By')
+                    ->label('Cashier')
                     ->sortable(),
             ])
-
-            ->defaultSort('movement_date', 'desc')
-
+            ->defaultSort('created_at', 'desc')
             ->actions([])
-
-            ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
-            ]);
+            ->bulkActions([]);
     }
 
     public static function getRelations(): array
@@ -132,7 +162,6 @@ class DailySaleResource extends Resource
         return [
             'index' => Pages\ListDailySales::route('/'),
             'create' => Pages\CreateDailySale::route('/create'),
-            'edit' => Pages\EditDailySale::route('/{record}/edit'),
         ];
     }
 }

@@ -10,10 +10,12 @@ class ListDailySales extends ListRecords
 {
     protected static string $resource = DailySaleResource::class;
 
+        protected static ?string $title = 'Sales Records';
+
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()->label('Add Sale')->slideOver(),
         ];
     }
 }
