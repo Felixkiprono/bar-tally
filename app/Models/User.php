@@ -152,4 +152,16 @@ class User extends Authenticatable implements FilamentUser
         return $query->where('role', '!=', self::ROLE_CUSTOMER);
     }
 
+
+    public function openDailySessions()
+    {
+        return $this->hasMany(DailySession::class, 'opened_by');
+    }
+    public function closeDailySessions()
+    {
+        return $this->hasMany(DailySession::class, 'closed_by');
+    }
+
+
+
 }

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class DailySession extends Model
 {
     //
-     protected $fillable = [
+    protected $fillable = [
         'tenant_id',
         'date',
         'opened_by',
@@ -15,6 +15,12 @@ class DailySession extends Model
         'closed_by',
         'closing_time',
         'is_open',
+    ];
+
+    protected $casts = [
+        'opening_time' => 'datetime',
+        'closing_time' => 'datetime',
+        'date' => 'date',
     ];
 
     /* Relationships */

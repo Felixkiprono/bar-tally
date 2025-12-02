@@ -8,15 +8,15 @@
 
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10" data-aos="fade-up">
         <h2 class="text-4xl md:text-5xl lg:text-6xl font-grotesk font-bold text-white mb-6">
-            Ready to Transform Your Billing?
+            Ready to Control Your Bar?
         </h2>
         <p class="text-xl text-primary-100 mb-10 max-w-2xl mx-auto">
-            Join 100+ organizations already achieving 95% on-time payments and <3% disputes
+            Join 50+ bars already tracking stock, sales, and variance with confidence
         </p>
-        
+
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
             @auth
-                <a href="/{{ config('filament.tenant.path') }}" 
+                <a href="/{{ config('filament.tenant.path') }}"
                    class="group px-10 py-5 bg-white text-primary-700 text-lg font-bold rounded-2xl hover:bg-primary-50 transition-all duration-300 shadow-2xl hover:shadow-white/30 hover:-translate-y-1 inline-flex items-center">
                     Go to Dashboard
                     <svg class="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -24,14 +24,14 @@
                     </svg>
                 </a>
             @else
-                <a href="/{{ config('filament.tenant.path') }}/login" 
+                <a href="/{{ config('filament.tenant.path') }}/login"
                    class="group px-10 py-5 bg-white text-primary-700 text-lg font-bold rounded-2xl hover:bg-primary-50 transition-all duration-300 shadow-2xl hover:shadow-white/30 hover:-translate-y-1 inline-flex items-center">
                     Get Started Today
                     <svg class="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
                     </svg>
                 </a>
-                <a href="#how-it-works" 
+                <a href="#how-it-works"
                    class="px-10 py-5 bg-white/10 backdrop-blur-sm text-white text-lg font-bold rounded-2xl hover:bg-white/20 transition-all duration-300 border-2 border-white/30 inline-flex items-center">
                     Learn More
                 </a>
@@ -41,16 +41,16 @@
         <!-- Trust Indicators -->
         <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 text-white/90">
             <div>
-                <div class="text-4xl font-bold mb-2">100+</div>
-                <div class="text-primary-200">Organizations</div>
+                <div class="text-4xl font-bold mb-2">50+</div>
+                <div class="text-primary-200">Bars & Clubs</div>
             </div>
             <div>
-                <div class="text-4xl font-bold mb-2">500K+</div>
-                <div class="text-primary-200">Meters Managed</div>
+                <div class="text-4xl font-bold mb-2">100%</div>
+                <div class="text-primary-200">Inventory Accuracy</div>
             </div>
             <div>
-                <div class="text-4xl font-bold mb-2">10M+</div>
-                <div class="text-primary-200">Transactions Processed</div>
+                <div class="text-4xl font-bold mb-2">$1K+</div>
+                <div class="text-primary-200">Avg. Savings/Month</div>
             </div>
         </div>
     </div>
@@ -60,18 +60,18 @@
 <footer class="bg-slate-900 text-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div class="grid md:grid-cols-4 gap-8 mb-12">
-            
+
             <!-- Brand Column -->
             <div class="md:col-span-2">
                 <div class="flex items-center space-x-3 mb-6">
-                    <img src="{{ asset('logo.png') }}" alt="Lipa Maji" class="h-12 w-auto filter brightness-0 invert">
+                    <!-- <img src="{{ asset('logo.png') }}" alt="BarMetriks" class="h-12 w-auto filter brightness-0 invert"> -->
                     <div class="flex flex-col">
-                        <span class="text-2xl font-grotesk font-bold leading-tight">Lipa Maji</span>
-                        <span class="text-sm text-slate-500 -mt-1">Hydra Billing System</span>
+                        <span class="text-2xl font-grotesk font-bold leading-tight">BarMetriks</span>
+                        <span class="text-sm text-slate-500 -mt-1">Bar Inventory & Sales</span>
                     </div>
                 </div>
                 <p class="text-slate-400 leading-relaxed mb-6 max-w-md">
-                    Transform your utility operations with outcomes that matter: accurate bills, faster collections, and zero disputes.
+                    Simple, powerful inventory and sales tracking for bars and clubs. Track stock, log sales, spot variance in real-time.
                 </p>
                 <div class="flex space-x-4">
                     <!-- Social Links -->
@@ -120,10 +120,10 @@
         <!-- Bottom Bar -->
         <div class="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p class="text-slate-500 text-sm">
-                &copy; {{ date('Y') }} Lipa Maji. All rights reserved.
+                &copy; {{ date('Y') }} BarMetriks. All rights reserved.
             </p>
             <p class="text-slate-500 text-sm mt-4 md:mt-0">
-                Made with ❤️ for modern utilities
+                Made with ❤️ for bar managers and owners
             </p>
         </div>
     </div>

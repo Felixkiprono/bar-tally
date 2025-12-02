@@ -25,7 +25,7 @@ class TenantPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        $name = config('filament.tenant.path') ?? 'ayirosprings';
+        $name = config('filament.tenant.path') ?? 'Barmetriks';
 
         return $panel
             ->id('tenant')
@@ -41,7 +41,7 @@ class TenantPanelProvider extends PanelProvider
             ])
             ->navigationGroups([
                 'Customer Management',
-                'Billing & Invoicing', 
+                'Billing & Invoicing',
                 'Meter Management',
                 'Accounting & Finance',
                 'Reports & Analytics',
@@ -69,7 +69,7 @@ class TenantPanelProvider extends PanelProvider
             ])
             ->authGuard('web')
             ->profile()
-            ->brandName(fn() => Auth::check() ? Auth::user()->tenant->name : 'Tenant Admin Panel')
+            ->brandName(fn() => Auth::check() ? Auth::user()->tenant->name : 'BarMetriks')
             ->databaseNotifications();
     }
 }
