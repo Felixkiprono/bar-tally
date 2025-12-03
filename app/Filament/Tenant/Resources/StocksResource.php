@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Models\Item;
 use Illuminate\Support\Facades\Auth;
+use App\Constants\StockMovementType;
 
 class StocksResource extends Resource
 {
@@ -50,7 +51,7 @@ class StocksResource extends Resource
                             ->minValue(1),
 
                         Forms\Components\Hidden::make('movement_type')
-                            ->default(fn() => 'restock'),
+                            ->default(StockMovementType::RESTOCK),
 
                         Forms\Components\DatePicker::make('movement_date')
                             ->label('Date')
@@ -79,7 +80,7 @@ class StocksResource extends Resource
             // Only show stock intake rows
             ->modifyQueryUsing(
                 fn($query) =>
-                $query->where('movement_type', 'restock')
+                $query->where('movement_type', StockMovementType::RESTOCK)
             )
 
             ->columns([

@@ -2,11 +2,14 @@
 
 namespace App\Filament\Tenant\Pages;
 
+use App\Constants\Stock;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
 use Filament\Pages\Actions\Action;
 use App\Models\DailySession as DailySessionModel;
+use App\Models\StockMovement;
 use Filament\Notifications\Notification;
+use App\Constants\StockMovementType;
 
 class DailySession extends Page
 {
@@ -105,11 +108,40 @@ class DailySession extends Page
             'is_open'       => true,
         ]);
 
+        // Move opening stock
+        $this->moveOpeningStock();
+
         Notification::make()
             ->title('Day opened')
             ->body('Today\'s session has been opened successfully.')
             ->success()
             ->send();
+    }
+
+    public function moveOpeningStock()
+    {
+        if (!$this->session) return;
+        $items = StockMovement::where('tenant_id', Auth::user()->tenant_id)
+            ->where('movement_type', 'closing_stock')
+            ->get();
+        if (!count($items)) {
+            session()->flash('error', 'No closing stock found from previous day to move!');
+            return;
+        }
+        foreach ($items as $item) {
+            StockMovement::create([
+                'tenant_id'     => Auth::user()->tenant_id,
+                'item_id'       => $item->item_id,
+                'counter_id'    => $item->counter_id,
+                'quantity'      => $item->quantity,
+                'movement_type' => StockMovementType::OPENING,
+                'movement_date' => today(),
+                'session_id'    => $this->session->id,
+                'created_by'    => Auth::id(),
+            ]);
+        }
+
+        session()->flash('success', 'Opening stock moved successfully!');
     }
 
     public function closeDay()

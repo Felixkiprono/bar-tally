@@ -18,6 +18,7 @@ use App\Models\Item;
 use App\Models\DailySession;
 use Filament\Forms\Components\Hidden;
 use Illuminate\Support\Facades\Auth;
+use App\Constants\StockMovementType;
 
 class ControllerResource extends Resource
 {
@@ -85,7 +86,7 @@ class ControllerResource extends Resource
                             ->default($user->id),
 
                         Forms\Components\Hidden::make('movement_type')
-                            ->default('closing'),
+                            ->default(StockMovementType::CLOSING),
 
                         Forms\Components\Hidden::make('session_id')
                             ->default(
@@ -105,7 +106,7 @@ class ControllerResource extends Resource
         return $table
             ->modifyQueryUsing(
                 fn($query) =>
-                $query->where('movement_type', 'closing')
+                $query->where('movement_type', StockMovementType::CLOSING)
             )
             ->columns([
 

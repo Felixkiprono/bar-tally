@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Models\Item;
 use Filament\Forms\Components\Hidden;
 use Illuminate\Support\Facades\Auth;
+use App\Constants\StockMovementType;
 
 class DailySaleResource extends Resource
 {
@@ -58,8 +59,6 @@ class DailySaleResource extends Resource
                             )
                             ->searchable()
                             ->required(),
-
-                        // Quantity (will be negated)
                         Forms\Components\TextInput::make('quantity')
                             ->label('Quantity Sold')
                             ->numeric()
@@ -92,7 +91,7 @@ class DailySaleResource extends Resource
                             ),
 
                         Forms\Components\Hidden::make('movement_type')
-                            ->default('sale'),
+                            ->default(StockMovementType::SALE),
                     ])
                     ->columns(2),
 
@@ -104,7 +103,7 @@ class DailySaleResource extends Resource
         return $table
             ->modifyQueryUsing(
                 fn($query) =>
-                $query->where('movement_type', 'sale')
+                $query->where('movement_type', StockMovementType::SALE)
             )
             ->columns([
 
