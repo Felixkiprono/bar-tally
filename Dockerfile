@@ -1,40 +1,42 @@
-FROM php:8.2-fpm
+FROM php:8.3-fpm
 
-# Install system dependencies
+# Install required extensions
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    libpq-dev
+    libzip-dev libonig-dev libicu-dev libjpeg-dev libpng-dev libwebp-dev libfreetype6-dev \
+    unzip git curl pkg-config default-mysql-client \
+    && docker-php-ext-install pdo_mysql zip intl pcntl exif \
+    && docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype \
+    && docker-php-ext-install gd
 
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install PHP extensions
-RUN docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath gd
-
-# Install Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
-
-# Get latest Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Install netcat for wait-for-db.sh
+RUN apt-get update && apt-get install -y netcat-openbsd
 
 # Set working directory
 WORKDIR /var/www
 
-# Copy existing application directory contents
-COPY . /var/www
+# Copy app files
+COPY . .
 
-# Copy existing application directory permissions
-COPY --chown=www-data:www-data . /var/www
+# Install composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Change current user to www
-USER www-data
+# Install dependencies
+RUN composer install --no-dev --optimize-autoloader
 
-# Expose port 9000 and start php-fpm server
+# Copy health/wait script
+COPY docker/wait-for-db.sh /wait-for-db.sh
+RUN chmod +x /wait-for-db.sh
+
+# Permissions
+RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+RUN chmod -R 775 /var/www/storage /var/www/bootstrap/cache
+
 EXPOSE 9000
+
+COPY docker/entrypoint.sh /entrypoint.sh
+COPY docker/wait-for-db.sh /wait-for-db.sh
+
+RUN chmod +x /entrypoint.sh /wait-for-db.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["php-fpm"]
