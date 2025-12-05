@@ -99,7 +99,7 @@ class StocksResource extends Resource
             // Only show stock intake rows
             ->modifyQueryUsing(
                 fn($query) =>
-                $query->where('movement_type', StockMovementType::RESTOCK)
+                $query->where('movement_type', StockMovementType::RESTOCK)->where('tenant_id', auth()->user()->tenant_id)->where('movement_date', today())
             )
 
             ->columns([

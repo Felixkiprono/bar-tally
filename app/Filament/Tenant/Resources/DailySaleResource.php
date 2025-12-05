@@ -73,10 +73,9 @@ class DailySaleResource extends Resource
                             ->minValue(1)
                             ->required(),
 
-                        Forms\Components\DatePicker::make('movement_date')
+                        Forms\Components\Hidden::make('movement_date')
                             ->label('Movement Date')
                             ->default(now())
-                            ->hidden(true)
                             ->required(),
 
                         Forms\Components\Textarea::make('notes')
@@ -112,7 +111,7 @@ class DailySaleResource extends Resource
         return $table
             ->modifyQueryUsing(
                 fn($query) =>
-                $query->where('movement_type', StockMovementType::SALE)
+                $query->where('movement_type', StockMovementType::SALE)->where('tenant_id', auth()->user()->tenant_id)->where('movement_date', today())
             )
             ->columns([
 

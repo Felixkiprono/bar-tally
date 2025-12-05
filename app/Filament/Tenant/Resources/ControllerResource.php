@@ -115,7 +115,7 @@ class ControllerResource extends Resource
         return $table
             ->modifyQueryUsing(
                 fn($query) =>
-                $query->where('movement_type', StockMovementType::CLOSING)
+                $query->where('movement_type', StockMovementType::CLOSING)->where('tenant_id', auth()->user()->tenant_id)->where('movement_date', today())
             )
             ->columns([
 
