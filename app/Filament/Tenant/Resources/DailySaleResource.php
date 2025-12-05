@@ -50,7 +50,7 @@ class DailySaleResource extends Resource
                             ->label('Counter')
                             ->options(
                                 Counter::query()
-                                    ->where('bar_id',  Auth::user()->bar_id)
+                                    // ->where('bar_id',  Auth::user()->bar_id)
                                     ->pluck('name', 'id')
                             )
                             ->searchable()
