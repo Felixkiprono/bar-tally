@@ -54,11 +54,10 @@ class ControllerResource extends Resource
                             ->label('Counter')
                             ->options(
                                 Counter::query()
-                                    ->where('bar_id', $user->bar_id)
+                                    // ->where('bar_id', $user->bar_id)
                                     ->pluck('name', 'id')
                             )
-                            ->searchable()
-                            ->required(),
+                            ->searchable(),
 
                         // Item selection
                         Forms\Components\Select::make('item_id')
