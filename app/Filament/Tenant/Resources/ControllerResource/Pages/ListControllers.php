@@ -19,9 +19,15 @@ class ListControllers extends ListRecords
     protected static ?string $title = 'Physical Count Records';
 
 
-   protected function getHeaderActions(): array
+    protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            Actions\CreateAction::make()
+                ->color('primary')
+                ->icon('heroicon-o-check-circle')
+                ->label('New Physical Count')
+                ->slideOver(),
+        ];
         // $user = Auth::user();
 
         // return [
