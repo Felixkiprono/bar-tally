@@ -3,10 +3,16 @@
 namespace App\Filament\Tenant\Pages;
 
 use Filament\Pages\Dashboard as BaseDashboard;
-
+use Filament\Panel;
 class Dashboard extends BaseDashboard
 {
 
+public function panel(Panel $panel): Panel
+{
+    return $panel
+        // ...
+        ->sidebarFullyCollapsibleOnDesktop();
+}
     public static function canView(): bool
     {
         $user = auth()->user();

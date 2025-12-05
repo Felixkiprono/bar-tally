@@ -74,8 +74,9 @@ class DailySaleResource extends Resource
                             ->required(),
 
                         Forms\Components\DatePicker::make('movement_date')
-                            ->label('Date')
+                            ->label('Movement Date')
                             ->default(now())
+                            ->hidden(true)
                             ->required(),
 
                         Forms\Components\Textarea::make('notes')

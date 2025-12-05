@@ -48,7 +48,8 @@ class UserResource extends Resource
         return parent::getEloquentQuery()
             ->when(auth()->check(), function ($query) {
                 return $query->where('tenant_id', auth()->user()->tenant_id);
-            });
+            })
+            ->whereNot('role',User::ROLE_SUPER_ADMIN);
     }
 
     public static function form(Form $form): Form

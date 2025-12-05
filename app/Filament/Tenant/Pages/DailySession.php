@@ -20,6 +20,7 @@ class DailySession extends Page
     protected static ?string $navigationLabel = 'Daily Session';
 
     public ?DailySessionModel $session = null;
+    public ?DailySessionModel $unfinishedDay = null;
 
     public static function canAccess(): bool
     {
@@ -34,10 +35,27 @@ class DailySession extends Page
             ->where('tenant_id', Auth::user()->tenant_id)
             ->whereDate('date', today())
             ->first();
+        // Find ANY previous open session
+        $this->unfinishedDay = DailySessionModel::where('tenant_id', Auth::user()->tenant_id)
+            ->where('is_open', true)
+            ->whereDate('date', '<', today())
+            ->orderBy('date')
+            ->first();
     }
+
 
     protected function getHeaderActions(): array
     {
+        if ($this->unfinishedDay) {
+            return [
+                Action::make('closePreviousDay')
+                    ->label("Close Previous Day ({$this->unfinishedDay->date->format('d M Y')})")
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->action(fn() => $this->closePreviousDay())
+                    ->icon('heroicon-s-x-circle'),
+            ];
+        }
         // No open session → show OPEN DAY button
         if (!$this->session || !$this->session->is_open) {
             return [
@@ -60,20 +78,42 @@ class DailySession extends Page
                 ->icon('heroicon-s-stop'),
         ];
     }
+    public function closePreviousDay()
+    {
+        if (!$this->unfinishedDay) return;
+
+        $this->unfinishedDay->update([
+            'is_open' => false,
+            'closed_by' => Auth::id(),
+            'closing_time' => now(),
+        ]);
+
+        Notification::make()
+            ->title("Previous Day Closed")
+            ->body("Successfully closed session for {$this->unfinishedDay->date->format('d M Y')}.")
+            ->success()
+            ->send();
+
+        $this->mount(); // Reload state
+    }
 
     public function openDay()
     {
         $tenantId = Auth::user()->tenant_id;
 
-        // Check if there is already a session for today
-        $existing = DailySessionModel::where('tenant_id', $tenantId)
+        /*
+    |--------------------------------------------------------------------------
+    | 1. Check if today's session already exists
+    |--------------------------------------------------------------------------
+    */
+        $existingToday = DailySessionModel::where('tenant_id', $tenantId)
             ->whereDate('date', today())
             ->first();
 
-        if ($existing) {
-            $this->session = $existing;
+        if ($existingToday) {
+            $this->session = $existingToday;
 
-            if ($existing->is_open) {
+            if ($existingToday->is_open) {
                 Notification::make()
                     ->title('Day is already open')
                     ->body('You already opened today\'s session. You cannot open it twice.')
@@ -86,27 +126,39 @@ class DailySession extends Page
                     ->danger()
                     ->send();
             }
-
             return;
         }
 
-        // Optionally: make sure previous session (yesterday) is closed
-        $lastSession = DailySessionModel::where('tenant_id', $tenantId)
-            ->orderByDesc('date')
+        /*
+    |--------------------------------------------------------------------------
+    | 2. Check if ANY previous day is still open
+    |--------------------------------------------------------------------------
+    */
+        $unfinishedDay = DailySessionModel::where('tenant_id', $tenantId)
+            ->where('is_open', true)
+            ->whereDate('date', '<', today())  // ONLY previous days
+            ->orderBy('date')
             ->first();
 
-        if ($lastSession && $lastSession->is_open) {
+        if ($unfinishedDay) {
             Notification::make()
-                ->title('Previous day is still open')
-                ->body('Please close the previous session before opening a new day.')
+                ->title('Previous Session Still Open')
+                ->body(
+                    "The session for <b>{$unfinishedDay->date->format('d M Y')}</b> is still open.
+                Please close it before opening a new day."
+                )
                 ->danger()
                 ->send();
 
-            $this->session = $lastSession;
+            $this->session = $unfinishedDay;
             return;
         }
 
-        // Create new session
+        /*
+    |--------------------------------------------------------------------------
+    | 3. No conflicts → Open today's day
+    |--------------------------------------------------------------------------
+    */
         $this->session = DailySessionModel::create([
             'tenant_id'     => $tenantId,
             'date'          => today(),
@@ -115,26 +167,63 @@ class DailySession extends Page
             'is_open'       => true,
         ]);
 
-        // Move opening stock
+        // Move opening stock from the most recent closed day
         $this->moveOpeningStock();
 
         Notification::make()
-            ->title('Day opened')
-            ->body('Today\'s session has been opened successfully.')
+            ->title('Day Opened Successfully')
+            ->body('Today\'s session has been opened.')
             ->success()
             ->send();
     }
 
+    // public function moveOpeningStock()
+    // {
+    //     if (!$this->session) return;
+    //     $items = StockMovement::where('tenant_id', Auth::user()->tenant_id)
+    //         ->where('movement_type', 'closing_stock')
+    //         ->get();
+    //     if (!count($items)) {
+    //         session()->flash('error', 'No closing stock found from previous day to move!');
+    //         return;
+    //     }
+    //     foreach ($items as $item) {
+    //         StockMovement::create([
+    //             'tenant_id'     => Auth::user()->tenant_id,
+    //             'item_id'       => $item->item_id,
+    //             'counter_id'    => $item->counter_id,
+    //             'quantity'      => $item->quantity,
+    //             'movement_type' => StockMovementType::OPENING,
+    //             'movement_date' => today(),
+    //             'session_id'    => $this->session->id,
+    //             'created_by'    => Auth::id(),
+    //         ]);
+    //     }
+
+    //     session()->flash('success', 'Opening stock moved successfully!');
+    // }
+
     public function moveOpeningStock()
     {
         if (!$this->session) return;
+
+        $yesterday = today()->subDay();
+
         $items = StockMovement::where('tenant_id', Auth::user()->tenant_id)
-            ->where('movement_type', 'closing_stock')
+            ->where('movement_type', StockMovementType::CLOSING)
+            ->whereDate('movement_date', $yesterday)
             ->get();
-        if (!count($items)) {
-            session()->flash('error', 'No closing stock found from previous day to move!');
+
+        if ($items->isEmpty()) {
+            Notification::make()
+                ->title('No Closing Stock Found')
+                ->body("No closing stock was found for {$yesterday->format('d M Y')}.")
+                ->warning()
+                ->send();
+
             return;
         }
+
         foreach ($items as $item) {
             StockMovement::create([
                 'tenant_id'     => Auth::user()->tenant_id,
@@ -148,21 +237,10 @@ class DailySession extends Page
             ]);
         }
 
-        session()->flash('success', 'Opening stock moved successfully!');
-    }
-
-    public function closeDay()
-    {
-        if (!$this->session) return;
-
-        $this->session->update([
-            'is_open' => false,
-            'closed_by' => Auth::user()->id,
-            'closing_time' => now(),
-        ]);
-
-        // TODO: Handle closing stock input
-
-        session()->flash('success', 'Day closed successfully!');
+        Notification::make()
+            ->title('Opening Stock Moved')
+            ->body('Opening stock has been moved from yesterday.')
+            ->success()
+            ->send();
     }
 }
