@@ -9,5 +9,6 @@ namespace App\Constants;
     public  const SALE     = 'sale';
     public  const PURCHASE = 'purchase';
     public  const RESTOCK  = 'restock';
+    public  const TRANSFER_TO_COUNTER = 'transfer_to_counter';
 
 }

@@ -23,8 +23,9 @@ class StocksResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-square-2-stack';
     protected static ?string $navigationGroup = 'Stock Management';
-    protected static ?string $navigationLabel = 'Receive Stock';
+    protected static ?string $navigationLabel = 'Purchase/Recieve Stock';
 
+    protected static ?int $navigationSort = 2;
 
 
     /*

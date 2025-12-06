@@ -24,6 +24,8 @@ class ItemResource extends Resource
     protected static ?string $navigationGroup = 'Stock Management';
 
     protected static ?string $navigationLabel = 'Products';
+        protected static ?int $navigationSort = 0;
+
 
     public static function canViewAny(): bool
     {
