@@ -36,7 +36,7 @@ class UserResource extends Resource
 
 
 
-   public static function canViewAny(): bool
+    public static function canViewAny(): bool
     {
         $user = auth()->user();
         if (!$user) return false;
@@ -49,7 +49,7 @@ class UserResource extends Resource
             ->when(auth()->check(), function ($query) {
                 return $query->where('tenant_id', auth()->user()->tenant_id);
             })
-            ->whereNot('role',User::ROLE_SUPER_ADMIN);
+            ->whereNot('role', User::ROLE_SUPER_ADMIN);
     }
 
     public static function form(Form $form): Form
@@ -91,13 +91,13 @@ class UserResource extends Resource
                     ->icon('heroicon-m-envelope'),
                 TextColumn::make('role')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn(string $state): string => match ($state) {
                         'super_admin' => 'danger',
                         'tenant_admin' => 'success',
                         'meter_reader' => 'info',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
                         'super_admin' => 'Super Admin',
                         'tenant_admin' => 'Tenant Admin',
                         'meter_reader' => 'Meter Reader',
@@ -123,7 +123,7 @@ class UserResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
             ->modifyQueryUsing(fn(Builder $query) => $query->where('role', '!=', 'customer'));
@@ -131,8 +131,7 @@ class UserResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-        ];
+        return [];
     }
 
     public static function getPages(): array
