@@ -16,7 +16,7 @@ class ListDailySales extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()->label('Add Sale')->slideOver(),
+            Actions\CreateAction::make()->label('Add Sale Entry')->slideOver(),
 
         ];
     }

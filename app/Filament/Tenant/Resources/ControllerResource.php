@@ -19,6 +19,11 @@ use App\Models\DailySession;
 use Filament\Forms\Components\Hidden;
 use Illuminate\Support\Facades\Auth;
 use App\Constants\StockMovementType;
+use App\Support\PhysicalCountImportHandler;
+use App\Support\PhysicalCountExportHandler;
+use Filament\Tables\Actions\Action;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Session;
 
 class ControllerResource extends Resource
 {
@@ -111,6 +116,83 @@ class ControllerResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->headerActions([
+                Action::make('importPhysicalCount')
+                    ->label('Import Physical Count')
+                    ->icon('heroicon-o-arrow-up-tray')
+                    ->form([
+                        Forms\Components\FileUpload::make('file')
+                            ->label('Upload CSV or Excel')
+                            ->required()
+                            ->disk('local')
+                            ->directory('imports/tmp')
+                            ->preserveFilenames(),
+                    ])
+                    ->action(function (array $data) {
+
+                        // temp path (Filament upload)
+                        $tempPath = Storage::disk('local')->path($data['file']);
+
+                        // permanent safe path
+                        $permanentFilename = uniqid('count_') . '.csv';
+                        $permanentRelative = 'imports/permanent/' . $permanentFilename;
+                        Storage::disk('local')->copy($data['file'], $permanentRelative);
+
+                        $absolutePath = Storage::disk('local')->path($permanentRelative);
+
+                        if (! file_exists($absolutePath)) {
+                            throw new \Exception("Permanent import file not found: {$absolutePath}");
+                        }
+
+                        // load rows
+                        $rows = \App\Support\PhysicalCountImportHandler::loadRows($absolutePath);
+
+                        Session::put('physical-count-rows', $rows);
+
+                        return redirect()->route('filament.tenant.pages.stock-count-import-preview');
+                    }),
+                Action::make('downloadTemplate')
+                    ->label('Download Count Template')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function () {
+
+                        $tenantId = Auth::user()->tenant_id;
+
+                        // Fetch all items for this tenant
+                        $items = \App\Models\Item::where('tenant_id', $tenantId)
+                            ->orderBy('name')
+                            ->get(['name', 'code']);
+
+                        $headers = [
+                            'Content-Type'        => 'text/csv',
+                            'Content-Disposition' => 'attachment; filename="physical_count_template.csv"',
+                        ];
+
+                        return response()->streamDownload(function () use ($items) {
+
+                            $file = fopen('php://output', 'w');
+
+                            // CSV Header
+                            fputcsv($file, ['counter', 'sku', 'product', 'quantity', 'notes']);
+
+                            // Body: list all items
+                            foreach ($items as $item) {
+                                fputcsv($file, [
+                                    '',                // counter (user will fill)
+                                    $item->code ?? '', // SKU
+                                    $item->name,       // Product name
+                                    '',                // quantity (user will fill)
+                                    '',                // notes (optional)
+                                ]);
+                            }
+
+                            fclose($file);
+                        }, 'physical_count_template.csv', $headers);
+                    })
+
+
+            ])
+
             ->modifyQueryUsing(
                 fn($query) =>
                 $query->where('movement_type', StockMovementType::CLOSING)->where('tenant_id', auth()->user()->tenant_id)->where('movement_date', today())

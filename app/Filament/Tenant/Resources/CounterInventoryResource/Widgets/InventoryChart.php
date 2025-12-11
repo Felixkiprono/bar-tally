@@ -11,7 +11,7 @@ class InventoryChart extends ChartWidget
 
     protected static ?string $heading = 'Stock vs Sold Overview';
 
-  protected function getData(): array
+    protected function getData(): array
     {
         $tenantId = Auth::user()->tenant_id;
 
@@ -19,7 +19,7 @@ class InventoryChart extends ChartWidget
         $rows = DB::table('items')
             ->leftJoin('stock_movements as sm', function ($join) use ($tenantId) {
                 $join->on('items.id', '=', 'sm.item_id')
-                     ->where('sm.tenant_id', '=', $tenantId);
+                    ->where('sm.tenant_id', '=', $tenantId);
             })
             ->where('items.tenant_id', $tenantId)
             ->groupBy('items.id', 'items.name')
@@ -50,6 +50,35 @@ class InventoryChart extends ChartWidget
             'labels' => $labels,
         ];
     }
+    protected function getColumns(): int
+    {
+        return 2; // or 3 depending on your layout
+    }
+ protected function getOptions(): array
+{
+    return [
+        'responsive' => true,
+        'maintainAspectRatio' => false,
+        'plugins' => [
+            'legend' => ['display' => true],
+        ],
+        'scales' => [
+            'x' => [
+                'ticks' => [
+                    'maxRotation' => 45,
+                    'minRotation' => 45,
+                ],
+            ],
+        ],
+    ];
+}
+protected function getChartWrapperAttributes(): array
+{
+    return [
+        'style' => 'overflow-x: auto; width: 100%;',
+    ];
+}
+
 
     protected function getType(): string
     {

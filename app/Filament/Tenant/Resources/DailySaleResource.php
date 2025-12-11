@@ -138,6 +138,50 @@ class DailySaleResource extends Resource
     {
         return $table
             ->headerActions([
+                Action::make('downloadTemplate')
+                    ->label('Download Template')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function () {
+
+                        $tenantId = auth()->user()->tenant_id;
+
+                        // Fetch actual counters & items for user convenience
+                        $counters = \App\Models\Counter::where('tenant_id', $tenantId)->pluck('name')->toArray();
+                        $items = \App\Models\Item::where('tenant_id', $tenantId)->pluck('name')->toArray();
+
+                        // Build CSV header
+                        $csv = "counter,product,quantity,notes\n";
+
+                        // Provide sample rows using real data
+                        $sampleRows = [];
+
+                        foreach ($items as $index => $itemName) {
+                            $sampleRows[] = [
+                                'counter'  => $counters[$index % max(1, count($counters))] ?? 'Counter A',
+                                'product'  => $itemName,
+                                'quantity' => 0,
+                                'notes'    => '',
+                            ];
+                        }
+
+                        foreach ($sampleRows as $row) {
+                            $csv .= implode(",", [
+                                $row['counter'],
+                                $row['product'],
+                                $row['quantity'],
+                                $row['notes'],
+                            ]) . "\n";
+                        }
+
+                        // Store CSV temporarily
+                        $fileName = 'sales_import_template_' . date('Ymd_His') . '.csv';
+                        $path = storage_path('app/' . $fileName);
+
+                        file_put_contents($path, $csv);
+
+                        return response()->download($path)->deleteFileAfterSend(true);
+                    })
+                    ->color('success'),
                 Action::make('importSales')
                     ->label('Import Sales')
                     ->icon('heroicon-o-arrow-up-tray')
