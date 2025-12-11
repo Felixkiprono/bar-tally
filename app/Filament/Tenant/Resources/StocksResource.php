@@ -16,6 +16,10 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Models\Item;
 use Illuminate\Support\Facades\Auth;
 use App\Constants\StockMovementType;
+use Filament\Tables\Actions\Action;
+use App\Support\SalesImportHandler;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Session;
 
 class StocksResource extends Resource
 {
@@ -96,6 +100,83 @@ class StocksResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->headerActions([
+                // DOWNLOAD TEMPLATE
+                Action::make('downloadTemplate')
+                    ->label('Download Template')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function () {
+                        $tenantId = auth()->user()->tenant_id;
+                        // fetch items to help user
+                        $items = \App\Models\Item::where('tenant_id', $tenantId)
+                            ->orderBy('name')
+                            ->get()
+                            ->toArray();
+
+                        // CSV HEADER
+                        $csv = "product,sku,brand,category,unit,cost_price,selling_price,reorder_level,quantity,notes\n";
+
+                        // Sample rows using real data
+                        foreach ($items as $item) {
+                            $csv .= implode(",", [
+                                $item['name'],      // product
+                                $item['code'],         // sku
+                                $item['brand'],       // brand
+                                $item['category'],          // category
+                                $item['unit'],     // unit
+                                0,          // cost_price
+                                0,          // selling_price
+                                0,          // reorder_level
+                                0,          // quantity
+                                "Warehouse restock", // notes
+                            ]) . "\n";
+                        }
+
+                        // Save file
+                        $fileName = 'stock_intake_template_' . date('Ymd_His') . '.csv';
+                        $path = storage_path('app/' . $fileName);
+
+                        file_put_contents($path, $csv);
+
+                        return response()->download($path)->deleteFileAfterSend(true);
+                    })
+                    ->color('success'),
+
+                // IMPORT STOCK
+                Action::make('importStock')
+                    ->label('Import Stock')
+                    ->icon('heroicon-o-arrow-up-tray')
+                    ->form([
+                        Forms\Components\FileUpload::make('file')
+                            ->label('Upload CSV or Excel')
+                            ->required()
+                            ->disk('local')
+                            ->directory('imports/tmp')
+                            ->preserveFilenames()
+                    ])
+                    ->action(function (array $data) {
+
+                        // TEMP → SAFE FILE COPY
+                        $tempPath = Storage::disk('local')->path($data['file']);
+                        $permanentFile = 'imports/permanent/' . uniqid() . '.csv';
+
+                        Storage::disk('local')->copy($data['file'], $permanentFile);
+                        $absolutePath = Storage::disk('local')->path($permanentFile);
+
+                        if (!file_exists($absolutePath)) {
+                            throw new \Exception("Import file not found: $absolutePath");
+                        }
+
+                        $path = Storage::disk('local')->path($data['file']);
+
+                        // ❌ WRONG
+                        $rows = \App\Support\SalesImportHandler::loadRows($path);
+
+                        Session::put('stock-import-rows', $rows);
+
+                        return redirect()->route('filament.tenant.pages.stock-import-preview');
+                    })
+            ])
             ->modifyQueryUsing(
                 fn($query) =>
                 $query->where('movement_type', StockMovementType::RESTOCK)->where('tenant_id', auth()->user()->tenant_id)->where('movement_date', today())

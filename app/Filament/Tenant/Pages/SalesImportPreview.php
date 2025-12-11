@@ -6,24 +6,25 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use App\Models\Item;
-use App\Models\Counter;
 use App\Models\StockMovement;
 
-class SalesImportPreview extends Page
+class StockImportPreview extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
-    protected static string $view = 'filament.tenant.pages.sales-import-preview';
+    protected static string $view = 'filament.tenant.pages.stock-import-preview';
+
     public $rows = [];
 
     public function mount()
     {
-        $this->rows = Session::get('sales-import-rows', []);
+        $this->rows = Session::get('stock-import-rows', []);
 
         if (empty($this->rows)) {
-            return redirect()->route('filament.tenant.resources.daily-sale.index');
+            return redirect()->route('filament.tenant.resources.stocks.index');
         }
     }
+
     public function import()
     {
         $tenantId = Auth::user()->tenant_id;
@@ -32,9 +33,9 @@ class SalesImportPreview extends Page
 
             $productName = trim($row['product'] ?? '');
             $quantity    = $row['quantity'] ?? null;
-            $sku    = $row['sku'] ?? null;
+            $sku         = $row['sku'] ?? null;
 
-            // Skip rows missing required fields
+            // Skip missing data rows
             if (!$productName || !$quantity) {
                 continue;
             }
@@ -44,7 +45,7 @@ class SalesImportPreview extends Page
              */
             $item = Item::firstOrCreate(
                 [
-                    'name'      => $productName,
+                    'name' => $productName,
                     'code' => $sku,
                 ],
                 [
@@ -60,44 +61,25 @@ class SalesImportPreview extends Page
                 ]
             );
 
-
             /**
-             * COUNTER (OPTIONAL)
-             */
-            $counterName = $row['counter'] ?? null;
-
-            if ($counterName) {
-                $counter = Counter::where('name', $counterName)
-                    ->where('tenant_id', $tenantId)
-                    ->first();
-            } else {
-                $counter = null;
-            }
-
-            /**
-             * MOVEMENT TYPE LOGIC
-             */
-            $movementType = $counter ? 'sale' : 'restock';
-
-            /**
-             * CREATE STOCK MOVEMENT
+             * CREATE RESTOCK MOVEMENT
              */
             StockMovement::create([
                 'tenant_id'     => $tenantId,
-                'counter_id'    => $counter?->id,
+                'counter_id'    => null, // Stock intake never has a counter
                 'item_id'       => $item->id,
-                'movement_type' => $movementType,
-                'quantity'      => (int)$quantity,
-                'notes'         => $row['notes'] ?? null,
+                'movement_type' => 'restock',
+                'quantity'      => (int) $quantity,
+                'notes'         => $row['notes'] ?? 'Warehouse restock',
                 'movement_date' => now(),
                 'created_by'    => Auth::id(),
             ]);
         }
 
-        session()->forget('sales-import-rows');
+        Session::forget('stock-import-rows');
 
-        session()->flash('success', 'Sales imported successfully!');
-        return redirect()->route('filament.tenant.resources.daily-sales.index');
+        session()->flash('success', 'Stock intake imported successfully!');
+        return redirect()->route('filament.tenant.resources.stocks.index');
     }
 
     protected function normalizeCategory($category)
@@ -107,11 +89,8 @@ class SalesImportPreview extends Page
         }
 
         $category = strtoupper(trim($category));
-
-        // Validate against allowed categories
         return Item::CATEGORIES[$category] ?? $category;
     }
-
 
     public static function shouldRegisterNavigation(): bool
     {
