@@ -20,15 +20,15 @@ use Filament\Tables\Actions\Action;
 use App\Support\SalesImportHandler;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Session;
+use App\Services\Stock\StockTemplateService;
+use App\Services\Stock\StockImportService;
 
 class StocksResource extends Resource
 {
     protected static ?string $model = StockMovement::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-square-2-stack';
     protected static ?string $navigationGroup = 'Stock Management';
     protected static ?string $navigationLabel = 'Purchase/Recieve Stock';
-
     protected static ?int $navigationSort = 2;
 
 
@@ -42,7 +42,6 @@ class StocksResource extends Resource
     {
         $user = auth()->user();
         if (!$user) return false;
-
         return $user->isManager() || $user->isTenantAdmin() || $user->isAdmin() || $user->isStockist();
     }
 
@@ -105,40 +104,8 @@ class StocksResource extends Resource
                 Action::make('downloadTemplate')
                     ->label('Download Template')
                     ->icon('heroicon-o-arrow-down-tray')
-                    ->action(function () {
-                        $tenantId = auth()->user()->tenant_id;
-                        // fetch items to help user
-                        $items = \App\Models\Item::where('tenant_id', $tenantId)
-                            ->orderBy('name')
-                            ->get()
-                            ->toArray();
-
-                        // CSV HEADER
-                        $csv = "product,sku,brand,category,unit,cost_price,selling_price,reorder_level,quantity,notes\n";
-
-                        // Sample rows using real data
-                        foreach ($items as $item) {
-                            $csv .= implode(",", [
-                                $item['name'],      // product
-                                $item['code'],         // sku
-                                $item['brand'],       // brand
-                                $item['category'],          // category
-                                $item['unit'],     // unit
-                                0,          // cost_price
-                                0,          // selling_price
-                                0,          // reorder_level
-                                0,          // quantity
-                                "Warehouse restock", // notes
-                            ]) . "\n";
-                        }
-
-                        // Save file
-                        $fileName = 'stock_intake_template_' . date('Ymd_His') . '.csv';
-                        $path = storage_path('app/' . $fileName);
-
-                        file_put_contents($path, $csv);
-
-                        return response()->download($path)->deleteFileAfterSend(true);
+                    ->action(function (StockTemplateService $service) {
+                        return $service->downloadTemplate(auth()->user()->tenant_id);
                     })
                     ->color('success'),
 
@@ -152,27 +119,14 @@ class StocksResource extends Resource
                             ->required()
                             ->disk('local')
                             ->directory('imports/tmp')
-                            ->preserveFilenames()
+                            ->preserveFilenames(),
                     ])
-                    ->action(function (array $data) {
+                    ->action(function (array $data, StockImportService $service) {
 
-                        // TEMP → SAFE FILE COPY
-                        $tempPath = Storage::disk('local')->path($data['file']);
-                        $permanentFile = 'imports/permanent/' . uniqid() . '.csv';
+                        $result = $service->preparePreview($data['file']);
 
-                        Storage::disk('local')->copy($data['file'], $permanentFile);
-                        $absolutePath = Storage::disk('local')->path($permanentFile);
-
-                        if (!file_exists($absolutePath)) {
-                            throw new \Exception("Import file not found: $absolutePath");
-                        }
-
-                        $path = Storage::disk('local')->path($data['file']);
-
-                        // ❌ WRONG
-                        $rows = \App\Support\SalesImportHandler::loadRows($path);
-
-                        Session::put('stock-import-rows', $rows);
+                        Session::put('stock-import-rows', $result['rows']);
+                        Session::put('stock-import-file', $result['file']);
 
                         return redirect()->route('filament.tenant.pages.stock-import-preview');
                     })
@@ -187,21 +141,36 @@ class StocksResource extends Resource
                     ->label('TimeStamp')
                     ->dateTime()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('counter.name')
+                    ->label('Counter')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('item.name')
                     ->label('Product')
                     ->sortable()
                     ->searchable(),
 
                 Tables\Columns\BadgeColumn::make('quantity')
-                    ->label('Qty')
-                    ->colors([
-                        'success' => fn($state) => $state > 0,
-                    ])
-                    ->formatStateUsing(fn($state) => "+{$state}"),
+                    ->label('Qty (Counter / Total)')
+                    ->state(function ($record) {
 
-                Tables\Columns\TextColumn::make('notes')
-                    ->limit(30)
-                    ->placeholder('-'),
+                        $grandTotal = \App\Models\StockMovement::query()
+                            ->where('tenant_id', $record->tenant_id)
+                            ->where('movement_type', \App\Constants\StockMovementType::RESTOCK)
+                            ->whereDate('movement_date', $record->movement_date)
+                            ->where('item_id', $record->item_id)
+                            ->sum('quantity');
+
+                        return "{$record->quantity} / {$grandTotal}";
+                    })
+                    ->colors([
+                        'success' => fn($state) => true,
+                    ])
+                    ->formatStateUsing(fn($state) => "{$state}"),
+
+                // Tables\Columns\TextColumn::make('notes')
+                //     ->limit(30)
+                //     ->placeholder('-'),
 
                 Tables\Columns\TextColumn::make('creator.name')
                     ->label('Recorded By')

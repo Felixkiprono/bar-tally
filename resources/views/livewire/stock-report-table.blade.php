@@ -5,58 +5,58 @@
         <canvas id="variationChart"></canvas>
     </div>
 
-@push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script>
+    <script>
+        function renderVariationChart() {
+            const chartData = @json($chartData);
 
-function renderVariationChart() {
-    const chartData = @json($chartData);
+            // Debug
+            console.log("Rendering chart with:", chartData);
 
-    // Debug
-    console.log("Rendering chart with:", chartData);
-
-    const canvas = document.getElementById('variationChart');
-    if (!canvas) {
-        console.warn("variationChart canvas not found");
-        return;
-    }
-
-    // Destroy any previous chart
-    if (window._variationChartInstance instanceof Chart) {
-        window._variationChartInstance.destroy();
-    }
-
-    window._variationChartInstance = new Chart(canvas.getContext("2d"), {
-        type: "bar",
-        data: {
-            labels: chartData.labels,
-            datasets: [{
-                label: "Variance",
-                data: chartData.variance,
-                backgroundColor: chartData.variance.map(v =>
-                    v < 0 ? "#ef4444" : "#22c55e"
-                ),
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
+            const canvas = document.getElementById('variationChart');
+            if (!canvas) {
+                console.warn("variationChart canvas not found");
+                return;
             }
+
+            // Destroy any previous chart
+            if (window._variationChartInstance instanceof Chart) {
+                window._variationChartInstance.destroy();
+            }
+
+            window._variationChartInstance = new Chart(canvas.getContext("2d"), {
+                type: "bar",
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: "Variance",
+                        data: chartData.variance,
+                        backgroundColor: chartData.variance.map(v =>
+                            v < 0 ? "#ef4444" : "#22c55e"
+                        ),
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
         }
-    });
-}
 
-// Run once when the page loads
-document.addEventListener("DOMContentLoaded", renderVariationChart);
+        // Run once when the page loads
+        document.addEventListener("DOMContentLoaded", renderVariationChart);
 
-// Run again after ANY Livewire DOM updates (filters, pagination, sorting)
-document.addEventListener("livewire:navigated", renderVariationChart);
-
-</script>
-@endpush
+        // Run again after ANY Livewire DOM updates (filters, pagination, sorting)
+        document.addEventListener("livewire:navigated", renderVariationChart);
+    </script>
+    @endpush
 
 
 

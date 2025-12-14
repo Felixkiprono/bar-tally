@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Session;
 use App\Models\Item;
 use App\Models\StockMovement;
 
-class StockImportPreview extends Page
+class SalesImportPreview extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
