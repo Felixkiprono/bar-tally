@@ -1,69 +1,93 @@
 <x-filament-panels::page>
 
-    <h2 class="text-xl font-bold mb-4">Preview Sales Import</h2>
+    <h2 class="text-xl font-bold mb-4">
+        Preview Sales Import
+    </h2>
 
-    <table class="w-full border bg-white">
-        <thead class="bg-gray-100 font-bold">
-            <tr>
-                <th class="p-2">Counter</th>
-                <th class="p-2">Product</th>
-                <th class="p-2">Qty</th>
-                <th class="p-2">Notes</th>
-            </tr>
-        </thead>
+    @if (empty($rows))
+        <div class="text-sm text-gray-500 dark:text-gray-400">
+            No valid sales rows found.
+        </div>
+    @else
+        <div class="overflow-x-auto rounded-lg shadow-sm
+                    bg-white dark:bg-gray-900
+                    ring-1 ring-gray-200 dark:ring-gray-800">
 
-      <table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700 rounded-lg overflow-hidden shadow-sm">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
 
-    <thead class="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-        <tr>
-            <th class="px-4 py-2 text-left text-sm font-medium">Counter</th>
-            <th class="px-4 py-2 text-left text-sm font-medium">Product</th>
-            <th class="px-4 py-2 text-left text-sm font-medium">Qty</th>
-            <th class="px-4 py-2 text-left text-sm font-medium">Notes</th>
-        </tr>
-    </thead>
+                {{-- Header --}}
+                <thead class="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            Counter
+                        </th>
+                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            Product
+                        </th>
+                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            Qty
+                        </th>
+                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            Notes
+                        </th>
+                    </tr>
+                </thead>
 
-    <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
-        @foreach($rows as $row)
-            <tr>
-                {{-- Counter --}}
-                <td class="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
-                    <span class="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700">
-                        {{ $row['counter'] ?? '-' }}
-                    </span>
-                </td>
+                {{-- Body --}}
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                    @foreach ($rows as $row)
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40">
 
-                {{-- Product --}}
-                <td class="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
-                    <span class="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700">
-                        {{ $row['product'] ?? '-' }}
-                    </span>
-                </td>
+                            {{-- Counter --}}
+                            <td class="px-4 py-2 text-sm">
+                                <span class="inline-flex items-center rounded-md
+                                             bg-gray-100 dark:bg-gray-700
+                                             px-2 py-1 text-gray-800 dark:text-gray-200">
+                                    {{ $row['counter'] ?? '-' }}
+                                </span>
+                            </td>
 
-                {{-- Quantity --}}
-                <td class="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
-                    <span class="px-2 py-1 rounded bg-green-200 dark:bg-green-700">
-                        {{ $row['quantity'] ?? '-' }}
-                    </span>
-                </td>
+                            {{-- Product --}}
+                            <td class="px-4 py-2 text-sm">
+                                <span class="inline-flex items-center rounded-md
+                                             bg-gray-100 dark:bg-gray-700
+                                             px-2 py-1 text-gray-800 dark:text-gray-200">
+                                    {{ $row['product'] ?? '-' }}
+                                </span>
+                            </td>
 
-                {{-- Notes --}}
-                <td class="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
-                    <span class="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700">
-                        {{ $row['notes'] ?? '-' }}
-                    </span>
-                </td>
-            </tr>
-        @endforeach
-    </tbody>
+                            {{-- Quantity --}}
+                            <td class="px-4 py-2 text-sm">
+                                <span class="inline-flex items-center rounded-md
+                                             bg-green-100 dark:bg-green-700/60
+                                             px-2 py-1 font-semibold
+                                             text-green-800 dark:text-green-100">
+                                    {{ $row['quantity'] ?? '-' }}
+                                </span>
+                            </td>
 
-    </table>
+                            {{-- Notes --}}
+                            <td class="px-4 py-2 text-sm">
+                                <span class="inline-flex items-center rounded-md
+                                             bg-gray-100 dark:bg-gray-700
+                                             px-2 py-1 text-gray-700 dark:text-gray-300">
+                                    {{ $row['notes'] ?? '-' }}
+                                </span>
+                            </td>
 
-    <x-filament::button
-        class="mt-4"
-        wire:click="import"
-        color="success">
-        Confirm Import
-    </x-filament::button>
+                        </tr>
+                    @endforeach
+                </tbody>
+
+            </table>
+        </div>
+
+        <x-filament::button
+            class="mt-4"
+            wire:click="import"
+            color="success">
+            Confirm Import
+        </x-filament::button>
+    @endif
 
 </x-filament-panels::page>

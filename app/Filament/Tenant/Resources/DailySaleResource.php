@@ -26,6 +26,7 @@ use App\Support\SalesImportHandler;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Session;
 
+
 class DailySaleResource extends Resource
 {
     protected static ?string $model = StockMovement::class;
@@ -182,6 +183,7 @@ class DailySaleResource extends Resource
                         return response()->download($path)->deleteFileAfterSend(true);
                     })
                     ->color('success'),
+
                 Action::make('importSales')
                     ->label('Import Sales')
                     ->icon('heroicon-o-arrow-up-tray')
@@ -193,32 +195,13 @@ class DailySaleResource extends Resource
                             ->directory('imports/tmp')
                             ->preserveFilenames()
                     ])
-                    ->action(function (array $data) {
+                    ->action(function (array $data, \App\Services\Sale\SalesImportService $service) {
 
-                        // absolute path to the temp file created by Filament
-                        $tempPath = Storage::disk('local')->path($data['file']);
+                        $result = $service->preparePreview($data['file']);
 
-                        // create a 100% safe permanent path
-                        $permanentFilename = uniqid() . '.csv';
-                        $permanentRelative = 'imports/permanent/' . $permanentFilename;
+                        Session::put('sale-import-rows', $result['rows']);
+                        Session::put('sale-import-file', $result['file']);
 
-                        // copy the file
-                        Storage::disk('local')->copy($data['file'], $permanentRelative);
-
-                        // absolute path for Excel reader
-                        $absolutePath = Storage::disk('local')->path($permanentRelative);
-
-                        if (! file_exists($absolutePath)) {
-                            throw new \Exception("Permanent file not found: $absolutePath");
-                        }
-
-                        // load rows from permanent file
-                        $rows = \App\Support\SalesImportHandler::loadRows($absolutePath);
-
-                        // store rows in session
-                        Session::put('sales-import-rows', $rows);
-
-                        // redirect to preview page
                         return redirect()->route('filament.tenant.pages.sales-import-preview');
                     })
             ])

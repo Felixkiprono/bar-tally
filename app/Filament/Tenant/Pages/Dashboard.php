@@ -7,6 +7,7 @@ use Filament\Panel;
 class Dashboard extends BaseDashboard
 {
 
+
 public function panel(Panel $panel): Panel
 {
     return $panel
@@ -20,13 +21,14 @@ public function panel(Panel $panel): Panel
 
         return $user->isManager() || $user->isTenantAdmin() || $user->isAdmin();
     }
-    public function getWidgets(): array
-    {
-        return [
-             \App\Filament\Tenant\Widgets\SalesChart::class,
-                \App\Filament\Tenant\Widgets\StockChart::class,
-        ];
-    }
+public function getWidgets(): array
+{
+    return [
+        \App\Filament\Tenant\Widgets\DashboardQuickStats::class,
+        \App\Filament\Tenant\Widgets\SalesChart::class,
+        \App\Filament\Tenant\Widgets\StockChart::class,
+    ];
+}
 
     public function getTitle(): string
     {
