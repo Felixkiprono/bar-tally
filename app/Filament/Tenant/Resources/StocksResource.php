@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Models\Item;
 use Illuminate\Support\Facades\Auth;
 use App\Constants\StockMovementType;
+use App\Models\Counter;
 use Filament\Tables\Actions\Action;
 use App\Support\SalesImportHandler;
 use Illuminate\Support\Facades\Storage;
@@ -60,6 +61,19 @@ class StocksResource extends Resource
                 Forms\Components\Section::make('Receive Stock')
                     ->description('Record stock received into central store')
                     ->schema([
+
+                            Forms\Components\Select::make('counter_id')
+                        ->label('Counter')
+                        ->options(
+                            Counter::query()
+                                ->where('tenant_id', Auth::user()->tenant_id)
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                        )
+                        ->searchable()
+                        ->placeholder('Central Store / Warehouse')
+                        ->helperText('Leave empty if stock is received into the main store')
+                        ->nullable(),
 
                         Forms\Components\Select::make('item_id')
                             ->label('Item')

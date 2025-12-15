@@ -22,7 +22,7 @@ class StockCountImportPreview extends Page
         $this->rows = Session::get('physical-count-rows', []);
 
         if (empty($this->rows)) {
-            return redirect()->route('filament.tenant.resources.physical-count.index');
+        return redirect()->route('filament.tenant.resources.controllers.index');
         }
     }
 
@@ -82,16 +82,15 @@ class StockCountImportPreview extends Page
                 'movement_date' => now(),
                 'created_by'    => Auth::id(),
                 'session_id'    => DailySession::where('tenant_id', $tenantId)
-                                    ->where('is_open', true)
-                                    ->first()?->id,
+                    ->where('is_open', true)
+                    ->first()?->id,
             ]);
         }
 
         Session::forget('physical-count-rows');
 
         session()->flash('success', 'Physical counts imported successfully!');
-
-        return redirect()->route('filament.tenant.resources.controller.index');
+        return redirect()->route('filament.tenant.resources.controllers.index');
     }
 
     public static function shouldRegisterNavigation(): bool

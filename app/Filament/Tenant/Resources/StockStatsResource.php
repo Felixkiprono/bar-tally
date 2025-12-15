@@ -13,7 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Tenant\Resources\StockStatsResource\Widgets\StockOverviewWidget;
+use App\Filament\Tenant\Widgets\StockOverviewWidget;
 
 class StockStatsResource extends Resource
 {
@@ -78,7 +78,6 @@ class StockStatsResource extends Resource
     {
         return [
             StockOverviewWidget::class,
-            // TopStockedItemsChart::class,
         ];
     }
 

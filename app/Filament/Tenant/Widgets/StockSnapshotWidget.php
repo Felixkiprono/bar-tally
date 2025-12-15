@@ -8,7 +8,7 @@ use App\Models\StockMovement;
 use App\Models\Item;
 use Illuminate\Support\Facades\DB;
 
-class StockOverviewWidget extends StatsOverviewWidget
+class StockSnapshotWidget extends StatsOverviewWidget
 {
     protected function getStats(): array
     {
