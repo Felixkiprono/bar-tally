@@ -41,86 +41,136 @@ class CurrentStockResource extends Resource
             ]);
     }
 
-    public static function table(Table $table): Table
-    {
-        return $table
-            ->query(
-                fn() =>
-                StockMovement::query()
-                    ->select([
-                        'item_id as id',
-                        'item_id',
-                        DB::raw("SUM(CASE WHEN movement_type = '" . StockMovementType::RESTOCK . "' THEN quantity ELSE 0 END) AS total_received"),
-                        DB::raw("SUM(CASE WHEN movement_type = '" . StockMovementType::SALE . "' THEN quantity ELSE 0 END) AS total_sold"),
-                        DB::raw("
-                SUM(CASE WHEN movement_type = '" . StockMovementType::RESTOCK . "' THEN quantity ELSE 0 END)
-                -
-                SUM(CASE WHEN movement_type = '" . StockMovementType::SALE . "' THEN quantity ELSE 0 END)
-                AS current_stock
-            "),
-                        'items.reorder_level',
-                    ])
-                    ->join('items', 'items.id', '=', 'stock_movements.item_id')
-                    ->where('stock_movements.tenant_id', auth()->user()->tenant_id)
-                    ->groupBy('item_id', 'items.reorder_level')
-                    ->orderBy('item_id', 'asc')
-            )
-            ->defaultSort('item_id', 'asc')
+ public static function table(Table $table): Table
+{
+    return $table
+        ->striped()
+        ->paginated([25, 50, 100])
+        ->defaultPaginationPageOption(25)
 
-            ->columns([
-                Tables\Columns\TextColumn::make('item.name')
-                    ->label('Product')
-                    ->sortable()
-                    ->searchable(),
+        /* ROW HIGHLIGHTING */
+        ->recordClasses(fn ($record) => match (true) {
+            $record->item?->name === 'TOTAL' =>
+                'bg-gray-200 dark:bg-gray-800 font-bold',
 
-                Tables\Columns\TextColumn::make('total_received')
-                    ->label('Received')
-                    ->numeric()
-                    ->sortable(),
+            $record->current_stock == 0 =>
+                'bg-red-50 dark:bg-red-950/40',
 
-                Tables\Columns\TextColumn::make('total_sold')
-                    ->label('Sold')
-                    ->numeric()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('item.reorder_level')
-                    ->label('Reorder Level')
-                    ->sortable(),
+            $record->current_stock > 0
+                && $record->current_stock < ($record->item?->reorder_level ?? 0) =>
+                'bg-amber-50 dark:bg-amber-950/40',
 
-                Tables\Columns\BadgeColumn::make('current_stock')
-                    ->label('Current Stock')
-                    ->formatStateUsing(function ($state, $record) {
-                        $level = $record->item->reorder_level;
+            default => null,
+        })
 
-                        if ($state == 0) {
-                            return "0 (Out of Stock)";
-                        }
+        /* QUERY */
+        ->query(
+            fn () =>
+            StockMovement::query()
+                ->select([
+                    'item_id as id',
+                    'item_id',
+                    'items.cost_price',
+                    'items.reorder_level',
 
-                        if ($state < $level) {
-                            return "{$state} (Below Reorder)";
-                        }
+                    DB::raw("SUM(CASE WHEN movement_type = '" . StockMovementType::RESTOCK . "' THEN quantity ELSE 0 END) AS total_received"),
+                    DB::raw("SUM(CASE WHEN movement_type = '" . StockMovementType::SALE . "' THEN quantity ELSE 0 END) AS total_sold"),
+                    DB::raw("
+                        SUM(CASE WHEN movement_type = '" . StockMovementType::RESTOCK . "' THEN quantity ELSE 0 END)
+                        -
+                        SUM(CASE WHEN movement_type = '" . StockMovementType::SALE . "' THEN quantity ELSE 0 END)
+                        AS current_stock
+                    "),
+                ])
+                ->join('items', 'items.id', '=', 'stock_movements.item_id')
+                ->where('stock_movements.tenant_id', auth()->user()->tenant_id)
+                ->groupBy('item_id', 'items.cost_price', 'items.reorder_level')
+                ->orderBy('item_id', 'asc')
+        )
 
-                        if ($state == $level) {
-                            return "{$state} (At Reorder Level)";
-                        }
+        ->defaultSort('item_id', 'asc')
 
-                        return "{$state} (Sufficient)";
-                    })
-                    ->colors([
-                        'danger'  => fn($record) => $record->current_stock == 0,                                   // Out of stock
-                        'warning' => fn($record) => $record->current_stock > 0
-                            && $record->current_stock < $record->item->reorder_level,   // Below reorder
-                        'warning' => fn($record) => $record->current_stock == $record->item->reorder_level,       // At reorder
-                        'success' => fn($record) => $record->current_stock > $record->item->reorder_level,        // Sufficient
-                    ])
+        /* COLUMNS */
+        ->columns([
+            Tables\Columns\TextColumn::make('item.name')
+                ->label('Product')
+                ->weight('bold')
+                ->searchable()
+                ->sortable()
+                ->description(fn ($record) =>
+                    $record->item?->name === 'TOTAL'
+                        ? null
+                        : 'Reorder @ ' . $record->item?->reorder_level
+                )
+                ->color('primary'),
 
-            ])
+            Tables\Columns\TextColumn::make('total_received')
+                ->label('Received')
+                ->numeric()
+                ->alignCenter()
+                ->color('success'),
 
-            ->filters([])
+            Tables\Columns\TextColumn::make('total_sold')
+                ->label('Sold')
+                ->numeric()
+                ->alignCenter()
+                ->color('danger'),
 
-            ->actions([])
+            Tables\Columns\BadgeColumn::make('current_stock')
+                ->label('Stock')
+                ->alignCenter()
+                ->formatStateUsing(function ($state, $record) {
+                    $level = $record->item?->reorder_level ?? 0;
 
-            ->bulkActions([]);
-    }
+                    return match (true) {
+                        $state == 0 => 'Out (0)',
+                        $state < $level => "{$state} ↓",
+                        $state == $level => "{$state} ⚠",
+                        default => "{$state} ✓",
+                    };
+                })
+                ->colors([
+                    'danger'  => fn ($record) => $record->current_stock == 0,
+                    'warning' => fn ($record) =>
+                        $record->current_stock > 0
+                        && $record->current_stock <= ($record->item?->reorder_level ?? 0),
+                    'success' => fn ($record) =>
+                        $record->current_stock > ($record->item?->reorder_level ?? 0),
+                ]),
+
+            Tables\Columns\TextColumn::make('cost_price')
+                ->label('Unit Cost')
+                ->alignEnd()
+                ->formatStateUsing(fn ($state) => 'KES ' . number_format($state, 0))
+                ->color('gray'),
+
+            Tables\Columns\TextColumn::make('received_value')
+                ->label('Received Value')
+                ->alignEnd()
+                ->state(fn ($record) => $record->total_received * $record->cost_price)
+                ->formatStateUsing(fn ($state) => 'KES ' . number_format($state, 0))
+                ->color('success'),
+
+            Tables\Columns\TextColumn::make('sold_value')
+                ->label('Sold Value')
+                ->alignEnd()
+                ->state(fn ($record) => $record->total_sold * $record->cost_price)
+                ->formatStateUsing(fn ($state) => 'KES ' . number_format($state, 0))
+                ->color('danger'),
+
+            Tables\Columns\TextColumn::make('stock_value')
+                ->label('Stock Value')
+                ->alignEnd()
+                ->weight('bold')
+                ->state(fn ($record) => $record->current_stock * $record->cost_price)
+                ->formatStateUsing(fn ($state) => 'KES ' . number_format($state, 0))
+                ->color('primary'),
+        ])
+
+        ->filters([])
+        ->actions([])
+        ->bulkActions([]);
+}
 
     public static function getRelations(): array
     {
