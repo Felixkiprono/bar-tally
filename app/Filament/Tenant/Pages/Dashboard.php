@@ -27,7 +27,7 @@ public function getWidgets(): array
 {
     return [
  StockValueOverviewWidget::class,
-  LowStockAlertWidget::class,
+//   LowStockAlertWidget::class,
     ];
 }
 
