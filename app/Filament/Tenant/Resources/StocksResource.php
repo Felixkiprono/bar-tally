@@ -208,18 +208,22 @@ class StocksResource extends Resource
                     ->alignCenter(),
 
                 ...Counter::where('tenant_id', auth()->user()->tenant_id)
+                    ->orderBy('name')
                     ->get()
                     ->map(
                         fn($counter) =>
                         Tables\Columns\TextColumn::make("counter_{$counter->id}")
                             ->label($counter->name)
+                            ->alignCenter()
                             ->state(
                                 fn($record) =>
                                 StockMovement::where('item_id', $record->item_id)
                                     ->where('counter_id', $counter->id)
                                     ->whereDate('movement_date', $record->movement_date)
+                                    ->where('movement_type', StockMovementType::RESTOCK) // ✅ IMPORTANT
                                     ->sum('quantity')
-                            )->formatStateUsing(fn($state) => $state ?: '–')
+                            )
+                            ->formatStateUsing(fn($state) => $state > 0 ? $state : '–')
                             ->color(fn($state) => $state > 0 ? 'primary' : 'gray')
                     ),
                 Tables\Columns\TextColumn::make('item.cost_price')
