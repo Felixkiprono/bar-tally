@@ -1,80 +1,87 @@
 <x-filament-panels::page>
 
-    <h2 class="text-xl font-bold mb-4">
+    <h2 class="text-xl font-bold mb-2">
         Preview Sales Import
     </h2>
 
-    @if (empty($rows))
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+        Review sales quantities per counter before confirming import.
+    </p>
+
+    @php
+        $grouped = collect($rows)->groupBy(fn ($r) =>
+            ($r['product'] ?? '') . '|' . ($r['sku'] ?? '')
+        );
+
+        $counters = collect($rows)
+            ->pluck('counter')
+            ->unique()
+            ->values();
+    @endphp
+
+    @if ($grouped->isEmpty())
         <div class="text-sm text-gray-500 dark:text-gray-400">
             No valid sales rows found.
         </div>
     @else
-        <div class="overflow-x-auto rounded-lg shadow-sm
+        {{-- FULL-WIDTH CONTAINER --}}
+        <div class="w-full overflow-x-auto rounded-xl
                     bg-white dark:bg-gray-900
                     ring-1 ring-gray-200 dark:ring-gray-800">
 
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+            <table class="w-full min-w-full divide-y divide-gray-200 dark:divide-gray-800">
 
-                {{-- Header --}}
+                {{-- HEADER --}}
                 <thead class="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Counter
-                        </th>
-                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        <th class="px-6 py-3 text-left text-sm font-semibold">
                             Product
                         </th>
-                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Qty
+                        <th class="px-6 py-3 text-left text-sm font-semibold">
+                            SKU
                         </th>
-                        <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Notes
-                        </th>
+
+                        @foreach($counters as $counter)
+                            <th class="px-6 py-3 text-center text-sm font-semibold">
+                                {{ ucfirst($counter) }}
+                            </th>
+                        @endforeach
                     </tr>
                 </thead>
 
-                {{-- Body --}}
+                {{-- BODY --}}
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                    @foreach ($rows as $row)
+                    @foreach($grouped as $group)
+                        @php
+                            $first = $group->first();
+                            $byCounter = $group->keyBy('counter');
+                        @endphp
+
                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40">
-
-                            {{-- Counter --}}
-                            <td class="px-4 py-2 text-sm">
-                                <span class="inline-flex items-center rounded-md
-                                             bg-gray-100 dark:bg-gray-700
-                                             px-2 py-1 text-gray-800 dark:text-gray-200">
-                                    {{ $row['counter'] ?? '-' }}
-                                </span>
+                            <td class="px-6 py-4 font-semibold">
+                                {{ $first['product'] }}
                             </td>
 
-                            {{-- Product --}}
-                            <td class="px-4 py-2 text-sm">
-                                <span class="inline-flex items-center rounded-md
-                                             bg-gray-100 dark:bg-gray-700
-                                             px-2 py-1 text-gray-800 dark:text-gray-200">
-                                    {{ $row['product'] ?? '-' }}
-                                </span>
+                            <td class="px-6 py-4 text-gray-500">
+                                {{ $first['sku'] ?? '-' }}
                             </td>
 
-                            {{-- Quantity --}}
-                            <td class="px-4 py-2 text-sm">
-                                <span class="inline-flex items-center rounded-md
-                                             bg-green-100 dark:bg-green-700/60
-                                             px-2 py-1 font-semibold
-                                             text-green-800 dark:text-green-100">
-                                    {{ $row['quantity'] ?? '-' }}
-                                </span>
-                            </td>
+                            @foreach($counters as $counter)
+                                @php
+                                    $qty = $byCounter[$counter]['quantity'] ?? 0;
+                                @endphp
 
-                            {{-- Notes --}}
-                            <td class="px-4 py-2 text-sm">
-                                <span class="inline-flex items-center rounded-md
-                                             bg-gray-100 dark:bg-gray-700
-                                             px-2 py-1 text-gray-700 dark:text-gray-300">
-                                    {{ $row['notes'] ?? '-' }}
-                                </span>
-                            </td>
-
+                                <td class="px-6 py-4 text-center">
+                                    <span class="inline-flex min-w-[2.5rem] justify-center
+                                        rounded-md px-3 py-1 font-semibold
+                                        {{ $qty > 0
+                                            ? 'bg-green-100 dark:bg-green-700/60 text-green-800 dark:text-green-100'
+                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300'
+                                        }}">
+                                        {{ $qty }}
+                                    </span>
+                                </td>
+                            @endforeach
                         </tr>
                     @endforeach
                 </tbody>
@@ -82,12 +89,16 @@
             </table>
         </div>
 
-        <x-filament::button
-            class="mt-4"
-            wire:click="import"
-            color="success">
-            Confirm Import
-        </x-filament::button>
+        {{-- FULL-WIDTH ACTION BUTTON --}}
+        <div class="mt-6">
+            <x-filament::button
+                class="w-full"
+                wire:click="import"
+                color="success"
+                size="lg">
+                Confirm Import
+            </x-filament::button>
+        </div>
     @endif
 
 </x-filament-panels::page>

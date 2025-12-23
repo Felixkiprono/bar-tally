@@ -3,9 +3,7 @@
 namespace App\Filament\Tenant\Resources;
 
 use App\Filament\Tenant\Resources\DailySaleResource\Pages;
-use App\Filament\Tenant\Resources\DailySaleResource\RelationManagers;
 use App\Models\Counter;
-use App\Models\DailySale;
 use App\Models\DailySession;
 use App\Models\StockMovement;
 use Filament\Forms;
@@ -13,18 +11,12 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Models\Item;
-use Filament\Forms\Components\Hidden;
 use Illuminate\Support\Facades\Auth;
 use App\Constants\StockMovementType;
-use Pxlrbt\FilamentExcel\Actions\Tables\ImportAction;
-use Pxlrbt\FilamentExcel\Imports\ExcelImport;
 use Filament\Tables\Actions\Action;
-use App\Support\SalesImportHandler;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Session;
+use App\Services\Sale\SalesTemplateService;
 
 
 class DailySaleResource extends Resource
@@ -138,133 +130,122 @@ class DailySaleResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->striped()
+            ->paginated([25, 50, 100])
+            ->defaultPaginationPageOption(25)
+
             ->headerActions([
                 Action::make('downloadTemplate')
-                    ->label('Download Template')
+                    ->label('Download Sales Template')
                     ->icon('heroicon-o-arrow-down-tray')
-                    ->action(function () {
-
-                        $tenantId = auth()->user()->tenant_id;
-
-                        // Fetch actual counters & items for user convenience
-                        $counters = \App\Models\Counter::where('tenant_id', $tenantId)->pluck('name')->toArray();
-                        $items = \App\Models\Item::where('tenant_id', $tenantId)->pluck('name')->toArray();
-
-                        // Build CSV header
-                        $csv = "counter,product,quantity,notes\n";
-
-                        // Provide sample rows using real data
-                        $sampleRows = [];
-
-                        foreach ($items as $index => $itemName) {
-                            $sampleRows[] = [
-                                'counter'  => $counters[$index % max(1, count($counters))] ?? 'Counter A',
-                                'product'  => $itemName,
-                                'quantity' => 0,
-                                'notes'    => '',
-                            ];
-                        }
-
-                        foreach ($sampleRows as $row) {
-                            $csv .= implode(",", [
-                                $row['counter'],
-                                $row['product'],
-                                $row['quantity'],
-                                $row['notes'],
-                            ]) . "\n";
-                        }
-
-                        // Store CSV temporarily
-                        $fileName = 'sales_import_template_' . date('Ymd_His') . '.csv';
-                        $path = storage_path('app/' . $fileName);
-
-                        file_put_contents($path, $csv);
-
-                        return response()->download($path)->deleteFileAfterSend(true);
-                    })
-                    ->color('success'),
+                    ->color('success')
+                    ->action(
+                        fn(SalesTemplateService $service) =>
+                        $service->downloadTemplate(auth()->user()->tenant_id)
+                    ),
 
                 Action::make('importSales')
                     ->label('Import Sales')
                     ->icon('heroicon-o-arrow-up-tray')
                     ->form([
                         Forms\Components\FileUpload::make('file')
-                            ->label('Upload CSV or Excel')
                             ->required()
-                            ->disk('local') // important!
+                            ->disk('local')
                             ->directory('imports/tmp')
-                            ->preserveFilenames()
+                            ->preserveFilenames(),
                     ])
                     ->action(function (array $data, \App\Services\Sale\SalesImportService $service) {
-
                         $result = $service->preparePreview($data['file']);
 
                         Session::put('sale-import-rows', $result['rows']);
                         Session::put('sale-import-file', $result['file']);
 
                         return redirect()->route('filament.tenant.pages.sales-import-preview');
-                    })
+                    }),
             ])
+
+            /* =========================
+         | GROUPED QUERY (CRITICAL)
+         * ========================= */
             ->modifyQueryUsing(
                 fn($query) =>
-                $query->where('movement_type', StockMovementType::SALE)
-                    ->where('tenant_id', Auth::user()->tenant_id)
-                    ->whereDate('movement_date', today())
+                $query
+                    ->selectRaw("
+                        created_at,
+                        CONCAT(item_id, '-', movement_date) AS id,
+                        item_id,
+                        movement_date,
+                        SUM(quantity) AS total_quantity
+                    ")
+                    ->where('tenant_id', auth()->user()->tenant_id)
+                    ->where('movement_type', StockMovementType::SALE)
+                    ->groupBy('item_id', 'movement_date', 'created_at')
             )
+
             ->columns([
 
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Time')
-                    ->dateTime('H:i')
-                    ->icon('heroicon-o-clock')
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('counter.name')
-                    ->label('Counter')
-                    ->weight('bold')
-                    ->icon('heroicon-o-rectangle-group')
+                Tables\Columns\TextColumn::make('movement_date')
+                    ->label('Date')
+                    ->date('d M Y')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('item.name')
                     ->label('Product')
-                    ->searchable()
-                    ->icon('heroicon-o-cube')
-                    ->sortable(),
+                    ->weight('bold')
+                    ->searchable(),
 
-                Tables\Columns\BadgeColumn::make('quantity')
-                    ->label('Qty')
-                    ->colors(['primary'])
-                    ->icon('heroicon-o-hashtag')
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('item.code')
+                    ->label('SKU')
+                    ->color('gray'),
 
-                Tables\Columns\TextColumn::make('item.selling_price')
-                    ->label('Price')
-                    ->money('kes', true)
-                    ->icon('heroicon-o-currency-dollar')
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('total_amount')
-                    ->label('Total')
-                    ->money('kes', true)
+                Tables\Columns\TextColumn::make('total_quantity')
+                    ->label('Total Sold')
+                    ->badge()
+                    ->color('success')
+                    ->alignCenter(),
+                Tables\Columns\TextColumn::make('total_sale_value')
+                    ->label('Total Sale Value')
+                    ->alignEnd()
                     ->state(
                         fn($record) =>
-                        abs($record->quantity) * ($record->item->selling_price ?? 0)
+                        $record->total_quantity * ($record->item->selling_price ?? 0)
                     )
-                    ->color('success')
+                    ->formatStateUsing(
+                        fn($state) =>
+                        'KES ' . number_format($state, 0)
+                    )
                     ->weight('bold')
-                    ->icon('heroicon-o-calculator')
-                    ->sortable(),
+                    ->color('success'),
 
-                Tables\Columns\TextColumn::make('creator.name')
-                    ->label('Cashier')
-                    ->icon('heroicon-o-user')
-                    ->sortable(),
+                /* =========================
+             | COUNTER COLUMNS
+             * ========================= */
+                ...Counter::where('tenant_id', auth()->user()->tenant_id)
+                    ->orderBy('name')
+                    ->get()
+                    ->map(
+                        fn($counter) =>
+                        Tables\Columns\TextColumn::make("counter_{$counter->id}")
+                            ->label($counter->name)
+                            ->alignCenter()
+                            ->state(
+                                fn($record) =>
+                                StockMovement::where('item_id', $record->item_id)
+                                    ->where('counter_id', $counter->id)
+                                    ->whereDate('movement_date', $record->movement_date)
+                                    ->where('movement_type', StockMovementType::SALE)
+                                    ->sum('quantity')
+                            )
+                            ->formatStateUsing(fn($state) => $state ?: '–')
+                            ->color(fn($state) => $state > 0 ? 'primary' : 'gray')
+                    ),
             ])
-            ->defaultSort('created_at', 'desc')
+
+            ->defaultSort('movement_date', 'desc')
             ->emptyStateHeading('No Sales Recorded')
-            ->emptyStateDescription('Sales you record today will appear here.')
-            ->emptyStateIcon('heroicon-o-document-text');
+            ->emptyStateDescription('Sales you record today will appear here.');
     }
+
 
 
     public static function getRelations(): array

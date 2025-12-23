@@ -204,7 +204,19 @@ class ControllerResource extends Resource
                     ->badge()
                     ->color('success')
                     ->alignCenter(),
-
+                Tables\Columns\TextColumn::make('total_count_value')
+                    ->label('Total Count Value')
+                    ->alignEnd()
+                    ->state(
+                        fn($record) =>
+                        $record->total_quantity * ($record->item->selling_price ?? 0)
+                    )
+                    ->formatStateUsing(
+                        fn($state) =>
+                        'KES ' . number_format($state, 0)
+                    )
+                    ->weight('bold')
+                    ->color('success'),
                 // COUNTER COLUMNS (DYNAMIC – SAME AS STOCK)
                 ...Counter::where('tenant_id', auth()->user()->tenant_id)
                     ->orderBy('name')
