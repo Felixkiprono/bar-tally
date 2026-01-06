@@ -43,7 +43,6 @@ class DailySession extends Page
             ->first();
     }
 
-
     protected function getHeaderActions(): array
     {
         if ($this->unfinishedDay) {
@@ -78,31 +77,31 @@ class DailySession extends Page
                 ->icon('heroicon-s-stop'),
         ];
     }
-public function closeDay()
-{
-    if (!$this->session || !$this->session->is_open) {
+    public function closeDay()
+    {
+        if (!$this->session || !$this->session->is_open) {
+            Notification::make()
+                ->title('No Open Session')
+                ->body('There is no open session for today.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $this->session->update([
+            'is_open'      => false,
+            'closed_by'    => Auth::id(),
+            'closing_time' => now(),
+        ]);
+
         Notification::make()
-            ->title('No Open Session')
-            ->body('There is no open session for today.')
-            ->danger()
+            ->title('Day Closed Successfully')
+            ->body("Session for {$this->session->date->format('d M Y')} has been closed.")
+            ->success()
             ->send();
-        return;
+
+        $this->mount(); // reload state
     }
-
-    $this->session->update([
-        'is_open'      => false,
-        'closed_by'    => Auth::id(),
-        'closing_time' => now(),
-    ]);
-
-    Notification::make()
-        ->title('Day Closed Successfully')
-        ->body("Session for {$this->session->date->format('d M Y')} has been closed.")
-        ->success()
-        ->send();
-
-    $this->mount(); // reload state
-}
 
     public function openDay()
     {
