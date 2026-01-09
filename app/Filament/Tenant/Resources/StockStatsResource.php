@@ -3,17 +3,13 @@
 namespace App\Filament\Tenant\Resources;
 
 use App\Filament\Tenant\Resources\StockStatsResource\Pages;
-use App\Filament\Tenant\Resources\StockStatsResource\RelationManagers;
 use App\Models\StockMovement;
-use App\Models\StockStats;
-use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Tenant\Widgets\StockOverviewWidget;
+use App\Filament\Tenant\Widgets\ProfitByProductChart;
+
 
 class StockStatsResource extends Resource
 {
@@ -44,6 +40,7 @@ class StockStatsResource extends Resource
     {
         return [
             StockOverviewWidget::class,
+            ProfitByProductChart::class,
         ];
     }
 
