@@ -3,29 +3,22 @@
 namespace App\Filament\Tenant\Resources;
 
 use App\Filament\Tenant\Resources\ControllerResource\Pages;
-use App\Filament\Tenant\Resources\ControllerResource\RelationManagers;
-use App\Models\Controller;
 use App\Models\StockMovement;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Models\Counter;
 use App\Models\Item;
 use App\Models\DailySession;
-use Filament\Forms\Components\Hidden;
 use Illuminate\Support\Facades\Auth;
 use App\Constants\StockMovementType;
-use App\Support\PhysicalCountImportHandler;
-use App\Support\PhysicalCountExportHandler;
 use Filament\Tables\Actions\Action;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Session;
 use App\Services\Stock\PhysicalCountTemplateService;
 use App\Services\Stock\StockCountImportService;
+use App\Services\DailySessionService;
 
 class ControllerResource extends Resource
 {
@@ -117,6 +110,11 @@ class ControllerResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $user = Auth::user();
+        $tenantId = $user->tenant_id;
+
+        $sessionService = app(DailySessionService::class);
+
         return $table
             ->striped()
             ->paginated([25, 50, 100])
@@ -130,7 +128,9 @@ class ControllerResource extends Resource
                 Action::make('downloadTemplate')
                     ->label('Download Count Template')
                     ->icon('heroicon-o-arrow-down-tray')
-                    ->color('success')
+                    ->color('default')
+                    ->outlined()
+                    ->disabled(fn() => !$sessionService->hasOpenSession($tenantId))
                     ->action(
                         fn(PhysicalCountTemplateService $service) =>
                         $service->downloadTemplate(auth()->user()->tenant_id)
@@ -139,6 +139,9 @@ class ControllerResource extends Resource
                 Action::make('importPhysicalCount')
                     ->label('Import Physical Count')
                     ->icon('heroicon-o-arrow-up-tray')
+                    ->color('warning')
+                    ->outlined(false)
+                    ->disabled(fn() => !$sessionService->hasOpenSession($tenantId))
                     ->form([
                         Forms\Components\FileUpload::make('file')
                             ->label('Upload CSV or Excel')

@@ -11,7 +11,10 @@ use App\Models\DailySession;
 use App\Models\StockMovement;
 use Illuminate\Support\Facades\Auth;
 use App\Constants\StockMovementType;
-
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
+use App\Services\DailySessionService;
+use Illuminate\Validation\ValidationException;
 class ListControllers extends ListRecords
 {
     protected static string $resource = ControllerResource::class;
@@ -21,77 +24,74 @@ class ListControllers extends ListRecords
 
     protected function getHeaderActions(): array
     {
+        $user = Auth::user();
+        $tenantId = $user->tenant_id;
+
+        $sessionService = app(DailySessionService::class);
+
         return [
+             /* =========================
+             | OPEN DAY
+             * ========================= */
+            Action::make('openDay')
+                ->label('Open Day')
+                ->icon('heroicon-o-lock-open')
+                ->color('success')
+                ->visible(fn () => ! $sessionService->hasOpenSession($tenantId))
+                ->action(function () use ($sessionService, $tenantId) {
+                    try {
+                        $sessionService->open($tenantId);
+
+                        Notification::make()
+                            ->title('Day opened successfully')
+                            ->success()
+                            ->send();
+
+                    } catch (ValidationException $e) {
+                        Notification::make()
+                            ->title('Cannot open day')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                })
+                ->after(fn () => $this->dispatch('$refresh')),
+
+            /* =========================
+             | CLOSE DAY
+             * ========================= */
+            Action::make('closeDay')
+                ->label('Close Day')
+                ->icon('heroicon-o-lock-closed')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->visible(fn () => $sessionService->hasOpenSession($tenantId))
+                ->action(function () use ($sessionService, $tenantId) {
+                    try {
+                        $sessionService->close($tenantId);
+
+                        Notification::make()
+                            ->title('Day closed successfully')
+                            ->success()
+                            ->send();
+
+                    } catch (ValidationException $e) {
+                        Notification::make()
+                            ->title('Cannot close day')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                })
+                ->after(fn () => $this->dispatch('$refresh')),
+
             Actions\CreateAction::make()
                 ->color('primary')
                 ->icon('heroicon-o-check-circle')
+                ->disabled(fn () => !$sessionService->hasOpenSession($tenantId))
                 ->label('New Physical Count')
                 ->slideOver(),
         ];
-        // $user = Auth::user();
 
-        // return [
-
-        //     Actions\CreateAction::make()
-        //       ->color('primary')
-        //         ->icon('heroicon-o-check-circle')
-        //     ->label('New Physical Count')
-        //     ->slideOver(),
-        //     Actions\Action::make('closingCount')
-        //         ->label('Record Closing Count')
-        //         ->color('primary')
-        //         ->icon('heroicon-o-check-circle')
-        //         ->slideOver() // Optional: makes it beautiful
-        //         ->form([
-        //             \Filament\Forms\Components\Card::make()
-        //                 ->schema([
-        //                     \Filament\Forms\Components\Select::make('counter_id')
-        //                         ->options(
-        //                             Counter::quer()->pluck('name', 'id')
-        //                         )
-        //                         ->label('Counter'),
-
-        //                     \Filament\Forms\Components\Select::make('item_id')
-        //                         ->options(
-        //                             Item::where('tenant_id', $user->tenant_id)->pluck('name', 'id')
-        //                         )
-        //                         ->label('Product')
-        //                         ->required(),
-
-        //                     \Filament\Forms\Components\TextInput::make('quantity')
-        //                         ->numeric()
-        //                         ->label('Closing Stock Count')
-        //                         ->required(),
-
-        //                     \Filament\Forms\Components\DatePicker::make('movement_date')
-        //                         ->default(today())
-        //                         ->required(),
-
-        //                     \Filament\Forms\Components\Textarea::make('notes')
-        //                         ->rows(2),
-
-        //                     \Filament\Forms\Components\Hidden::make('tenant_id')
-        //                         ->default($user->tenant_id),
-
-        //                     \Filament\Forms\Components\Hidden::make('created_by')
-        //                         ->default($user->id),
-
-        //                     \Filament\Forms\Components\Hidden::make('movement_type')
-        //                         ->default(StockMovementType::CLOSING),
-
-        //                     \Filament\Forms\Components\Hidden::make('session_id')
-        //                         ->default(
-        //                             DailySession::where('tenant_id', $user->tenant_id)
-        //                                 ->where('is_open', true)
-        //                                 ->value('id')
-        //                         ),
-        //                 ])
-        //                 ->columns(2)
-        //         ])
-        //         ->action(function (array $data) {
-        //             StockMovement::create($data);
-        //         }),
-
-        // ];
     }
 }
