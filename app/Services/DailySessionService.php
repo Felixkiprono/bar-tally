@@ -89,13 +89,13 @@ class DailySessionService
         $items = StockMovement::query()
             ->where('tenant_id', $tenantId)
             ->where('movement_type', StockMovementType::CLOSING)
-            // ->whereDate('movement_date', $yesterday)
+            ->whereDate('movement_date', $yesterday)
             ->get();
 
         if ($items->isEmpty()) {
-            throw ValidationException::withMessages([
-                'stock' => 'No closing stock found.',
-            ]);
+            // throw ValidationException::withMessages([
+            //     'stock' => 'No closing stock found.',
+            // ]);
         }
 
         $session = $this->current($tenantId);

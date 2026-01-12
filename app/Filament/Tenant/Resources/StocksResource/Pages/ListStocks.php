@@ -25,7 +25,7 @@ class ListStocks extends ListRecords
 
             Actions\CreateAction::make()
                             ->outlined()
-                            ->disabled(fn() => !$sessionService->hasOpenSession($tenantId))
+                            // ->disabled(fn() => !$sessionService->hasOpenSession($tenantId))
                             ->label('Add Stock')
                             ->slideOver(),
         ];

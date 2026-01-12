@@ -138,7 +138,7 @@ class StocksResource extends Resource
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('default')
                     ->outlined()
-                    ->disabled(fn() => !$sessionService->hasOpenSession($tenantId))
+                    // ->disabled(fn() => !$sessionService->hasOpenSession($tenantId))
                     ->action(function (StockTemplateService $service) {
                         return $service->downloadTemplate(auth()->user()->tenant_id);
                     }),
@@ -149,7 +149,7 @@ class StocksResource extends Resource
                     ->icon('heroicon-o-arrow-up-tray')
                     ->color('warning')
                     ->outlined(false)
-                    ->disabled(fn() => !$sessionService->hasOpenSession($tenantId))
+                    // ->disabled(fn() => !$sessionService->hasOpenSession($tenantId))
                     ->form([
                         Forms\Components\FileUpload::make('file')
                             ->label('Upload CSV or Excel')

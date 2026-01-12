@@ -6,6 +6,7 @@ use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Panel;
 use App\Filament\Tenant\Widgets\StockValueOverviewWidget;
 use App\Filament\Tenant\Widgets\LowStockAlertWidget;
+use Filament\Widgets\StatsOverviewWidget\Stat;
 
 
 class Dashboard extends BaseDashboard

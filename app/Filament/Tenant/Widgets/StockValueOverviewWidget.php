@@ -6,6 +6,7 @@ use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use App\Models\StockMovement;
 use App\Constants\StockMovementType;
+use App\Models\Item;
 
 class StockValueOverviewWidget extends StatsOverviewWidget
 {
@@ -62,6 +63,25 @@ class StockValueOverviewWidget extends StatsOverviewWidget
 
                 return $variance * $cost;
             });
+
+        $varianceToday = StockMovement::where('tenant_id', $tenantId)
+            ->whereDate('movement_date', today())
+            ->get()
+            ->groupBy('item_id')
+            ->sum(function ($movements) {
+                $opening = $movements->where('movement_type', 'opening_stock')->sum('quantity');
+                $restock = $movements->where('movement_type', 'restock')->sum('quantity');
+                $sold = $movements->where('movement_type', 'sale')->sum('quantity');
+                $closing = $movements->where('movement_type', 'closing_stock')->sum('quantity');
+
+                $expected = $opening + $restock - $sold;
+                $variance = $expected - $closing;
+
+                $itemId = $movements->first()->item_id;
+                $cost = (float) Item::find($itemId)?->cost_price ?? 0;
+
+                return $variance * $cost;
+            });
         /* =========================
          | STATS
          * ========================= */
@@ -78,9 +98,9 @@ class StockValueOverviewWidget extends StatsOverviewWidget
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success'),
 
-            Stat::make('Variance Value Today', 'KES ' . number_format($varianceValueToday, 2))
+            Stat::make('Variance Value Today', 'KES ' . number_format($varianceToday, 2))
                 ->description('Stock variance cost')
-                ->color($varianceValueToday >= 0 ? 'success' : 'danger'),
+                ->color($varianceToday >= 0 ? 'success' : 'danger'),
 
             Stat::make('Current Stock Value', 'KES ' . number_format($currentStockValue, 0))
                 ->description('Unsold inventory 📦')
