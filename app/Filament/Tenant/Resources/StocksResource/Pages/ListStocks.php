@@ -16,20 +16,18 @@ class ListStocks extends ListRecords
 
     protected static ?string $title = 'Stocks in Store';
 
-
-
     protected function getHeaderActions(): array
     {
-         $user = Auth::user();
+        $user = Auth::user();
         $tenantId = $user->tenant_id;
         $sessionService = app(DailySessionService::class);
         return [
 
             Actions\CreateAction::make()
-             ->outlined()
-                    ->disabled(fn() => !$sessionService->hasOpenSession($tenantId))
-            ->label('Add Stock')
-            ->slideOver(),
+                            ->outlined()
+                            ->disabled(fn() => !$sessionService->hasOpenSession($tenantId))
+                            ->label('Add Stock')
+                            ->slideOver(),
         ];
     }
 }

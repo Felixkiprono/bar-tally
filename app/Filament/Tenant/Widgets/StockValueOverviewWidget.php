@@ -45,6 +45,23 @@ class StockValueOverviewWidget extends StatsOverviewWidget
             ? round(($profit / $salesValue) * 100, 1)
             : 0;
 
+        $varianceValueToday = StockMovement::where('tenant_id', $tenantId)
+            ->whereDate('movement_date', today())
+            ->get()
+            ->groupBy('item_id')
+            ->sum(function ($movements) {
+                $opening = $movements->where('movement_type', 'opening_stock')->sum('quantity');
+                $restock = $movements->where('movement_type', 'restock')->sum('quantity');
+                $sold = $movements->where('movement_type', 'sale')->sum('quantity');
+                $closing = $movements->where('movement_type', 'closing_stock')->sum('quantity');
+
+                $expected = $opening + $restock - $sold;
+                $variance = $expected - $closing;
+
+                $cost = (float) optional($movements->first())->cost_price;
+
+                return $variance * $cost;
+            });
         /* =========================
          | STATS
          * ========================= */
@@ -60,6 +77,10 @@ class StockValueOverviewWidget extends StatsOverviewWidget
                 ->description('Revenue generated 💰')
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success'),
+
+            Stat::make('Variance Value Today', 'KES ' . number_format($varianceValueToday, 2))
+                ->description('Stock variance cost')
+                ->color($varianceValueToday >= 0 ? 'success' : 'danger'),
 
             Stat::make('Current Stock Value', 'KES ' . number_format($currentStockValue, 0))
                 ->description('Unsold inventory 📦')

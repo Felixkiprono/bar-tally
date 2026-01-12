@@ -112,7 +112,6 @@ class ControllerResource extends Resource
     {
         $user = Auth::user();
         $tenantId = $user->tenant_id;
-
         $sessionService = app(DailySessionService::class);
 
         return $table

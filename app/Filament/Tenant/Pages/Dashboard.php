@@ -7,6 +7,7 @@ use Filament\Panel;
 use App\Filament\Tenant\Widgets\StockValueOverviewWidget;
 use App\Filament\Tenant\Widgets\LowStockAlertWidget;
 
+
 class Dashboard extends BaseDashboard
 {
 

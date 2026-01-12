@@ -16,7 +16,7 @@ class ListDailySales extends ListRecords
 
     protected function getHeaderActions(): array
     {
-         $user = Auth::user();
+        $user = Auth::user();
         $tenantId = $user->tenant_id;
         $sessionService = app(DailySessionService::class);
         return [
