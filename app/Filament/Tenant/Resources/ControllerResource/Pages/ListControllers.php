@@ -65,7 +65,7 @@ class ListControllers extends ListRecords
                 ->icon('heroicon-o-lock-closed')
                 ->color('danger')
                 ->requiresConfirmation()
-                ->visible(fn () => $sessionService->hasOpenSession($tenantId))
+                // ->visible(fn () => $sessionService->hasOpenSession($tenantId))
                 ->action(function () use ($sessionService, $tenantId) {
                     try {
                         $sessionService->close($tenantId);
