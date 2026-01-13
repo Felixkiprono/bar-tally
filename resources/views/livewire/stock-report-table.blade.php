@@ -217,17 +217,20 @@
                     <td class="p-3 text-center">{{ $totals['expected'] }}</td>
 
                     <td class="p-3 text-center">
-                        @if($totals['variance'] > 0)
-                        <span class="px-2 py-1 rounded bg-green-200 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                       @if ($totals['variance'] < 0)
+                        <span class="text-red-400">
+                            {{ $totals['variance'] }}
+                        </span>
+                    @elseif ($totals['variance'] > 0)
+                        <span class="text-green-400">
                             +{{ $totals['variance'] }}
                         </span>
-                        @elseif($totals['variance'] < 0)
-                            <span class="px-2 py-1 rounded bg-red-200 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                            {{ $totals['variance'] }}
-                            </span>
-                            @else
-                            0
-                            @endif
+                    @else
+                        <span class="text-gray-500">
+                            balanced
+                        </span>
+                    @endif
+
                     </td>
                     @foreach($counters as $counterId => $counterName)
                     @php $cv = $this->counterVarianceTotals[$counterId] ?? 0; @endphp
@@ -235,7 +238,7 @@
                         @if ($cv > 0)
                             <span class="text-green-400">+{{ $cv }}</span>
                         @elseif ($cv < 0)
-                            <span class="text-red-400">{{ $cv }}</span>
+                            <span class="text-red-400">{{ $cv }} shortage</span>
                         @else
                             <span class="text-gray-500">0</span>
                         @endif
