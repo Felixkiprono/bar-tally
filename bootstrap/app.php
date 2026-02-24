@@ -11,6 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Trust reverse proxy (e.g. Traefik) so X-Forwarded-Proto is used and URLs are generated as HTTPS
+        $middleware->trustProxies(at: '*');
+
         // Standard middleware configuration
         $middleware->web(append: [
             // Standard Laravel middleware
